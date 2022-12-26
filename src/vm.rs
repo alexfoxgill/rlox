@@ -1,4 +1,4 @@
-use crate::{chunk::{Chunk, OpCode}, value::Value, debug::{print_value, disassemble_instruction}};
+use crate::{chunk::{Chunk, OpCode}, value::Value, debug::{print_value, disassemble_instruction}, compiler::compile};
 
 pub struct VM {
     pub chunk: Chunk,
@@ -102,6 +102,7 @@ pub enum InterpretResult {
     RuntimeError
 }
 
-pub fn interpret(chunk: Chunk) -> InterpretResult {
-    VM::new(chunk).run()
+pub fn interpret(source: String) -> InterpretResult {
+    compile(source);
+    todo!()
 }

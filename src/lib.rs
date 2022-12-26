@@ -1,13 +1,31 @@
+use crate::vm::interpret;
+
+pub mod compiler;
 pub mod chunk;
 pub mod debug;
 pub mod value;
+pub mod scanner;
 pub mod vm;
+
+fn repl() {
+    loop {
+        print!("> ");
+
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).unwrap();
+
+        interpret(line);
+        
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use crate::{
         chunk::{Chunk, OpCode}, vm::VM,
     };
+
+    use super::*;
 
     #[test]
     fn test_chunk() {
