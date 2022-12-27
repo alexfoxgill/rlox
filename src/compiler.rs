@@ -75,7 +75,8 @@ impl<'c, 's> Parser<'c, 's> {
         self.parse_precedence(Precedence::Unary);
 
         match op_type {
-            TokenType::Minus => self.emit_byte(OpCode::Negate as u8),
+            TokenType::Minus => self.emit_op_code(OpCode::Negate),
+            TokenType::Bang => self.emit_op_code(OpCode::Not),
             _ => ()
         }
     }
@@ -87,10 +88,10 @@ impl<'c, 's> Parser<'c, 's> {
         self.parse_precedence(rule.precedence.next());
 
         match op_type {
-            TokenType::Plus => self.emit_byte(OpCode::Add as u8),
-            TokenType::Minus => self.emit_byte(OpCode::Subtract as u8),
-            TokenType::Star => self.emit_byte(OpCode::Multiply as u8),
-            TokenType::Slash => self.emit_byte(OpCode::Divide as u8),
+            TokenType::Plus => self.emit_op_code(OpCode::Add),
+            TokenType::Minus => self.emit_op_code(OpCode::Subtract),
+            TokenType::Star => self.emit_op_code(OpCode::Multiply),
+            TokenType::Slash => self.emit_op_code(OpCode::Divide),
             _ => ()
         }
     }
@@ -110,7 +111,7 @@ impl<'c, 's> Parser<'c, 's> {
             SemiColon => ParseRule::new(),
             Slash => ParseRule::prec(Factor).infix(|p| p.binary()),
             Star => ParseRule::prec(Factor).infix(|p| p.binary()),
-            Bang => ParseRule::new(),
+            Bang => ParseRule::new().prefix(|p| p.unary()),
             BangEqual => ParseRule::new(),
             Equal => ParseRule::new(),
             EqualEqual => ParseRule::new(),
@@ -144,9 +145,9 @@ impl<'c, 's> Parser<'c, 's> {
 
     fn literal(&mut self) {
         match self.previous().typ {
-            TokenType::False => self.emit_byte(OpCode::False as u8),
-            TokenType::Nil => self.emit_byte(OpCode::Nil as u8),
-            TokenType::True => self.emit_byte(OpCode::True as u8),
+            TokenType::False => self.emit_op_code(OpCode::False),
+            TokenType::Nil => self.emit_op_code(OpCode::Nil),
+            TokenType::True => self.emit_op_code(OpCode::True),
             _ => ()
         }
     }
@@ -201,7 +202,11 @@ impl<'c, 's> Parser<'c, 's> {
     }
 
     fn emit_return(&mut self) {
-        self.emit_byte(OpCode::Return as u8)
+        self.emit_op_code(OpCode::Return)
+    }
+
+    fn emit_op_code(&mut self, op_code: OpCode) {
+        self.emit_byte(op_code as u8)
     }
 
     fn emit_byte(&mut self, byte: u8) {

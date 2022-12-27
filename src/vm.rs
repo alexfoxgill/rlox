@@ -88,6 +88,11 @@ impl VM {
                     return InterpretResult::RuntimeError
                 }
 
+                OpCode::Not => {
+                    let value = self.pop();
+                    self.push(Value::Bool(is_falsey(value)));
+                }
+
                 OpCode::Negate => {
                     let value = self.pop();
 
@@ -160,4 +165,12 @@ pub fn interpret(source: &str) -> InterpretResult {
     let res = vm.run();
     vm.free();
     res
+}
+
+fn is_falsey(value: Value) -> bool {
+    match value {
+        Value::Nil => true,
+        Value::Bool(b) => !b,
+        Value::Number(_) => false
+    }
 }

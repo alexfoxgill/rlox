@@ -56,6 +56,9 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         OpCode::Divide => {
             simple_instruction("OP_DIVIDE", offset)
         }
+        OpCode::Not => {
+            simple_instruction("OP_NOT", offset)
+        }
         OpCode::Negate => {
             simple_instruction("OP_NEGATE", offset)  
         }

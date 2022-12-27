@@ -16,6 +16,7 @@ pub enum OpCode {
     Multiply,
     Divide,
 
+    Not,
     Negate,
     Return,
 }
@@ -27,10 +28,17 @@ impl TryFrom<u8> for OpCode {
         use OpCode::*;
         Ok(match value {
             x if x == Constant as u8 => Constant,
+
+            x if x == Nil as u8 => Nil,
+            x if x == True as u8 => True,
+            x if x == False as u8 => False,
+
             x if x == Add as u8 => Add,
             x if x == Subtract as u8 => Subtract,
             x if x == Multiply as u8 => Multiply,
             x if x == Divide as u8 => Divide,
+
+            x if x == Not as u8 => Not,
             x if x == Negate as u8 => Negate,
             x if x == Return as u8 => Return,
             _ => return Err("Unknown opcode".into())
