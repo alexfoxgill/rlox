@@ -2,15 +2,15 @@ fn is_alpha(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_'
 }
 
-pub struct Scanner {
-    pub source: String,
+pub struct Scanner<'s> {
+    pub source: &'s str,
     pub start: usize,
     pub current: usize,
     pub line: usize
 }
 
-impl Scanner {
-    pub fn init(source: String) -> Scanner {
+impl<'s> Scanner<'s> {
+    pub fn init(source: &'s str) -> Scanner<'s> {
         Scanner {
             source,
             start: 0,
@@ -19,7 +19,7 @@ impl Scanner {
         }
     }
 
-    pub fn token(&mut self) -> Token {
+    pub fn token(&mut self) -> Token<'s> {
         self.skip_whitespace();
         self.start = self.current;
 
@@ -50,7 +50,7 @@ impl Scanner {
         }
     }
 
-    fn identifier(&mut self) -> Token {
+    fn identifier(&mut self) -> Token<'s> {
         while is_alpha(self.peek()) || self.peek().is_ascii_digit() {
             self.advance();
         }
@@ -109,7 +109,7 @@ impl Scanner {
         }
     }
 
-    fn number(&mut self) -> Token {
+    fn number(&mut self) -> Token<'s> {
         while self.peek().is_ascii_digit() {
             self.advance();
         }
@@ -125,7 +125,7 @@ impl Scanner {
         self.make_token(TokenType::Number)
     }
 
-    fn string(&mut self) -> Token {
+    fn string(&mut self) -> Token<'s> {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -176,7 +176,7 @@ impl Scanner {
         self.get_char(self.current)
     }
 
-    fn token_if_match(&mut self, expected: char, if_present: TokenType, if_absent: TokenType) -> Token {
+    fn token_if_match(&mut self, expected: char, if_present: TokenType, if_absent: TokenType) -> Token<'s> {
         if self.match_char(expected) {
             self.make_token(if_present)
         } else {
@@ -210,7 +210,7 @@ impl Scanner {
         self.current == self.source.len()
     }
 
-    fn make_token<'a>(&'a self, typ: TokenType) -> Token {
+    fn make_token(&self, typ: TokenType) -> Token<'s> {
         Token {
             typ,
             start: self.start,
@@ -220,7 +220,7 @@ impl Scanner {
         }
     }
 
-    fn error_token(&self, error: &'static str) -> Token {
+    fn error_token(&self, error: &'static str) -> Token<'s> {
         Token {
             typ: TokenType::Error,
             start: 0,
@@ -231,6 +231,7 @@ impl Scanner {
     }
 }
 
+#[derive(PartialEq, Eq, Clone)]
 pub struct Token<'a> {
     pub typ: TokenType,
     pub length: usize,

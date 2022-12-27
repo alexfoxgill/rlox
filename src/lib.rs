@@ -14,7 +14,7 @@ fn repl() {
         let mut line = String::new();
         std::io::stdin().read_line(&mut line).unwrap();
 
-        interpret(line);
+        interpret(&line);
         
     }
 }
@@ -26,6 +26,11 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn test_expression() {
+        let res = interpret("(-1 + 2) * 3 - -4");
+    }
 
     #[test]
     fn test_chunk() {

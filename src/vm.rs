@@ -102,7 +102,16 @@ pub enum InterpretResult {
     RuntimeError
 }
 
-pub fn interpret(source: String) -> InterpretResult {
-    compile(source);
-    todo!()
+pub fn interpret(source: &str) -> InterpretResult {
+    let mut chunk = Chunk::new();
+
+    if !compile(source, &mut chunk) {
+        chunk.free();
+        return InterpretResult::CompileError;
+    }
+
+    let mut vm = VM::new(chunk);
+    let res = vm.run();
+    vm.free();
+    res
 }
