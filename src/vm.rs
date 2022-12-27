@@ -34,10 +34,20 @@ impl VM {
         self.chunk.constants.values[byte as usize]
     }
 
-    fn binary_op<F: Fn(Value, Value) -> Value>(&mut self, f: F) {
+    fn binary_op<F: Fn(f64, f64) -> Value>(&mut self, f: F) -> bool {
         let a = self.pop();
         let b = self.pop();
-        self.push(f(a, b))
+
+        match (a, b) {
+            (Value::Number(a), Value::Number(b)) => {
+                self.push(f(a, b));
+                true
+            },
+            _ => {
+                self.runtime_error("Operands must be numbers");
+                false
+            }
+        }
     }
 
     pub fn run(&mut self) -> InterpretResult {
@@ -63,21 +73,48 @@ impl VM {
                     print_value(&res);
                     print!("\n");
                     return InterpretResult::OK
-                },
+                }
 
-                OpCode::Add => self.binary_op(|a,b| a + b),
-                OpCode::Subtract => self.binary_op(|a,b| a - b),
-                OpCode::Multiply => self.binary_op(|a,b| a * b),
-                OpCode::Divide => self.binary_op(|a,b| a / b),
+                OpCode::Add => if !self.binary_op(|a,b| Value::Number(a + b)) {
+                    return InterpretResult::RuntimeError
+                }
+                OpCode::Subtract => if !self.binary_op(|a,b| Value::Number(a - b)) {
+                    return InterpretResult::RuntimeError
+                }
+                OpCode::Multiply => if !self.binary_op(|a,b| Value::Number(a * b)) {
+                    return InterpretResult::RuntimeError
+                }
+                OpCode::Divide => if !self.binary_op(|a,b| Value::Number(a / b)) {
+                    return InterpretResult::RuntimeError
+                }
 
                 OpCode::Negate => {
                     let value = self.pop();
-                    self.push(-value);
-                },
+
+                    match value {
+                        Value::Number(n) => self.push(Value::Number(-n)),
+                        _ => {
+                            self.runtime_error("Operand must be a number");
+                            return InterpretResult::RuntimeError;
+                        }
+                    }
+                }
 
                 OpCode::Constant => {
                     let constant = self.read_constant();
                     self.push(constant);
+                }
+
+                OpCode::Nil => {
+                    self.push(Value::Nil)
+                }
+
+                OpCode::True => {
+                    self.push(Value::Bool(true))
+                }
+
+                OpCode::False => {
+                    self.push(Value::Bool(false))
                 }
             }
         }
@@ -93,6 +130,15 @@ impl VM {
 
     pub fn pop(&mut self) -> Value {
         self.stack.pop().unwrap()
+    }
+
+    fn runtime_error(&mut self, error: &str) {
+        eprintln!("{error}");
+
+        let ins = self.chunk.code[self.ip - 1];
+        let line = self.chunk.lines[ins as usize];
+        eprintln!("[line {line}] in script");
+        self.reset_stack();
     }
 }
 

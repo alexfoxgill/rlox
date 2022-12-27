@@ -66,7 +66,7 @@ impl<'c, 's> Parser<'c, 's> {
     fn number(&mut self) {
         let value: f64 = self.previous().slice.parse().unwrap();
 
-        self.emit_constant(value)
+        self.emit_constant(Value::Number(value))
     }
 
     fn unary(&mut self) {
@@ -124,21 +124,30 @@ impl<'c, 's> Parser<'c, 's> {
             TokenType::And => ParseRule::new(),
             Class => ParseRule::new(),
             Else => ParseRule::new(),
-            False => ParseRule::new(),
+            False => ParseRule::new().prefix(|p| p.literal()),
             For => ParseRule::new(),
             Fun => ParseRule::new(),
             If => ParseRule::new(),
-            Nil => ParseRule::new(),
+            Nil => ParseRule::new().prefix(|p| p.literal()),
             TokenType::Or => ParseRule::new(),
             Print => ParseRule::new(),
             Return => ParseRule::new(),
             Super => ParseRule::new(),
             This => ParseRule::new(),
-            True => ParseRule::new(),
+            True => ParseRule::new().prefix(|p| p.literal()),
             Var => ParseRule::new(),
             While => ParseRule::new(),
             Error => ParseRule::new(),
             EOF => ParseRule::new(),
+        }
+    }
+
+    fn literal(&mut self) {
+        match self.previous().typ {
+            TokenType::False => self.emit_byte(OpCode::False as u8),
+            TokenType::Nil => self.emit_byte(OpCode::Nil as u8),
+            TokenType::True => self.emit_byte(OpCode::True as u8),
+            _ => ()
         }
     }
 
@@ -183,7 +192,7 @@ impl<'c, 's> Parser<'c, 's> {
         self.emit_bytes(OpCode::Constant as u8, constant);
     }
 
-    fn make_constant(&mut self, value: f64) -> u8 {
+    fn make_constant(&mut self, value: Value) -> u8 {
         let c = self.chunk.add_constant(value);
         c.try_into().unwrap_or_else(|_| {
             self.error("Too many constants in one chunk");

@@ -22,7 +22,7 @@ fn repl() {
 #[cfg(test)]
 mod tests {
     use crate::{
-        chunk::{Chunk, OpCode}, vm::VM,
+        chunk::{Chunk, OpCode}, vm::VM, value::Value,
     };
 
     use super::*;
@@ -36,17 +36,17 @@ mod tests {
     fn test_chunk() {
         let mut chunk = Chunk::new();
 
-        let constant = chunk.add_constant(1.2);
+        let constant = chunk.add_constant(Value::Number(1.2));
         chunk.write_opcode(OpCode::Constant, 123);
         chunk.write(constant as u8, 123);
 
-        let constant = chunk.add_constant(3.4);
+        let constant = chunk.add_constant(Value::Number(3.4));
         chunk.write_opcode(OpCode::Constant, 123);
         chunk.write(constant as u8, 123);
 
         chunk.write_opcode(OpCode::Add, 123);
 
-        let constant = chunk.add_constant(5.6);
+        let constant = chunk.add_constant(Value::Number(5.6));
         chunk.write_opcode(OpCode::Constant, 123);
         chunk.write(constant as u8, 123);
 

@@ -7,6 +7,10 @@ use crate::value::{Value, ValueArray};
 pub enum OpCode {
     Constant,
 
+    Nil,
+    True,
+    False,
+
     Add,
     Subtract,
     Multiply,
