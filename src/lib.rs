@@ -29,7 +29,7 @@ mod tests {
 
     #[test]
     fn test_expression() {
-        let res = interpret("(-1 + 2) * 3 - -4");
+        let res = interpret("!(5 - 4 > 3 * 2 == !nil)");
     }
 
     #[test]

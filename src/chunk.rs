@@ -3,13 +3,17 @@ use std::error::Error;
 use crate::value::{Value, ValueArray};
 
 #[repr(u8)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OpCode {
     Constant,
 
     Nil,
     True,
     False,
+
+    Equal,
+    Greater,
+    Less,
 
     Add,
     Subtract,
@@ -32,6 +36,10 @@ impl TryFrom<u8> for OpCode {
             x if x == Nil as u8 => Nil,
             x if x == True as u8 => True,
             x if x == False as u8 => False,
+
+            x if x == Equal as u8 => Equal,
+            x if x == Greater as u8 => Greater,
+            x if x == Less as u8 => Less,
 
             x if x == Add as u8 => Add,
             x if x == Subtract as u8 => Subtract,

@@ -33,51 +33,37 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
 
     match op_code {
         OpCode::Constant => {
-            constant_instruction("OP_CONSTANT", chunk, offset)
+            constant_instruction(op_code, chunk, offset)
         }
-        OpCode::Nil => {
-            simple_instruction("OP_NIL", offset)
-        }
-        OpCode::True => {
-            simple_instruction("OP_TRUE", offset)
-        }
-        OpCode::False => {
-            simple_instruction("OP_FALSE", offset)
-        }
-        OpCode::Add => {
-            simple_instruction("OP_ADD", offset)
-        }
-        OpCode::Subtract => {
-            simple_instruction("OP_SUBTRACT", offset)
-        }
-        OpCode::Multiply => {
-            simple_instruction("OP_MULTIPLY", offset)
-        }
-        OpCode::Divide => {
-            simple_instruction("OP_DIVIDE", offset)
-        }
-        OpCode::Not => {
-            simple_instruction("OP_NOT", offset)
-        }
-        OpCode::Negate => {
-            simple_instruction("OP_NEGATE", offset)  
-        }
-        OpCode::Return => {
-            simple_instruction("OP_RETURN", offset)
+        OpCode::Nil
+        | OpCode::True
+        | OpCode::False
+        | OpCode::Equal
+        | OpCode::Less
+        | OpCode::Greater
+        | OpCode::Add
+        | OpCode::Subtract
+        | OpCode::Multiply
+        | OpCode::Divide
+        | OpCode::Not
+        | OpCode::Negate
+        | OpCode::Return
+         => {
+            simple_instruction(op_code, offset)
         }
     }
 }
 
-fn constant_instruction(name: &str, chunk: &Chunk, offset: usize) -> usize {
+fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
     let constant = chunk.code[offset + 1];
-    print!("{name:16} {constant:>4} ");
+    print!("{op_code:16?} {constant:>4} ");
     print_value(&chunk.constants.values[constant as usize]);
     print!("\n");
     offset + 2
 }
 
-fn simple_instruction(name: &str, offset: usize) -> usize {
-    println!("{name}");
+fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
+    println!("{op_code:?}");
     offset + 1
 }
 

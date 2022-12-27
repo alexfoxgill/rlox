@@ -75,8 +75,21 @@ impl VM {
                     return InterpretResult::OK
                 }
 
-                OpCode::Add => if !self.binary_op(|a,b| Value::Number(a + b)) {
+                OpCode::Equal => {
+                    let a = self.pop();
+                    let b = self.pop();
+                    self.push(Value::Bool(a == b));
+                }
+
+                OpCode::Greater => if !self.binary_op(|a,b| Value::Bool(a > b)) {
                     return InterpretResult::RuntimeError
+                }
+
+                OpCode::Less => if !self.binary_op(|a,b| Value::Bool(a < b)) {
+                    return InterpretResult::RuntimeError
+                }
+
+                OpCode::Add => if !self.binary_op(|a,b| Value::Number(a + b)) {
                 }
                 OpCode::Subtract => if !self.binary_op(|a,b| Value::Number(a - b)) {
                     return InterpretResult::RuntimeError
