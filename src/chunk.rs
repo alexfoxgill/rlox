@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::value::{Value, ValueArray};
+use crate::{value::{Value, ValueArray}};
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

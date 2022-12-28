@@ -1,17 +1,19 @@
-use crate::{chunk::{Chunk, OpCode}, value::Value, debug::{print_value, disassemble_instruction}, compiler::compile};
+use crate::{chunk::{Chunk, OpCode}, value::{Value, Object}, debug::{print_value, disassemble_instruction}, compiler::compile, string_intern::StringInterner};
 
 pub struct VM {
     pub chunk: Chunk,
     pub ip: usize,
-    pub stack: Vec<Value>
+    pub stack: Vec<Value>,
+    pub strings: StringInterner,
 }
 
 impl VM {
-    pub fn new(chunk: Chunk) -> Self {
+    pub fn new(chunk: Chunk, strings: StringInterner) -> Self {
         Self {
             chunk,
             ip: 0,
-            stack: Vec::new()
+            stack: Vec::new(),
+            strings
         }
     }
 
@@ -31,12 +33,12 @@ impl VM {
 
     pub fn read_constant(&mut self) -> Value {
         let byte = self.read_byte();
-        self.chunk.constants.values[byte as usize]
+        self.chunk.constants.values[byte as usize].clone()
     }
 
     fn binary_op<F: Fn(f64, f64) -> Value>(&mut self, f: F) -> bool {
-        let a = self.pop();
         let b = self.pop();
+        let a = self.pop();
 
         match (a, b) {
             (Value::Number(a), Value::Number(b)) => {
@@ -89,7 +91,32 @@ impl VM {
                     return InterpretResult::RuntimeError
                 }
 
-                OpCode::Add => if !self.binary_op(|a,b| Value::Number(a + b)) {
+                OpCode::Add => {
+                    let b = self.pop();
+                    let a = self.pop();
+                    match (a.as_string(), b.as_string()) {
+                        (Some(a), Some(b)) => {
+                            let (_, concat) = {
+                                let mut concat = a.to_owned();
+                                concat.push_str(b);
+                                self.strings.intern(&concat)
+                            };
+                            self.push(Value::Object(Box::new(Object::String(concat))));
+                            continue;
+                        }
+                        _ => ()
+                    }
+
+                    match (a.as_number(), b.as_number()) {
+                        (Some(a), Some(b)) => {
+                            self.push(Value::Number(a + b));
+                            continue;
+                        },
+                        _ => ()
+                    }
+
+                    self.runtime_error("Operands must be strings or numbers");
+                    return InterpretResult::RuntimeError
                 }
                 OpCode::Subtract => if !self.binary_op(|a,b| Value::Number(a - b)) {
                     return InterpretResult::RuntimeError
@@ -168,13 +195,14 @@ pub enum InterpretResult {
 
 pub fn interpret(source: &str) -> InterpretResult {
     let mut chunk = Chunk::new();
+    let mut strings = StringInterner::with_capacity(16);
 
-    if !compile(source, &mut chunk) {
+    if !compile(source, &mut chunk, &mut strings) {
         chunk.free();
         return InterpretResult::CompileError;
     }
 
-    let mut vm = VM::new(chunk);
+    let mut vm = VM::new(chunk, strings);
     let res = vm.run();
     vm.free();
     res
@@ -184,6 +212,7 @@ fn is_falsey(value: Value) -> bool {
     match value {
         Value::Nil => true,
         Value::Bool(b) => !b,
-        Value::Number(_) => false
+        Value::Number(_) => false,
+        Value::Object(_) => false
     }
 }

@@ -1,10 +1,32 @@
 use core::fmt;
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Value {
     Nil,
     Bool(bool),
-    Number(f64)
+    Number(f64),
+    Object(Box<Object>)
+}
+
+impl Value {
+    pub fn as_number(&self) -> Option<f64> {
+        match self {
+            Value::Number(n) => Some(*n),
+            _ => None
+        }
+    }
+
+    pub fn as_string(&self) -> Option<&'static str> {
+        match self {
+            Value::Object(o) => {
+                match o.as_ref() {
+                    Object::String(s) => Some(s),
+                    _ => None
+                }
+            }
+            _ => None
+        }   
+    }
 }
 
 impl fmt::Display for Value {
@@ -12,9 +34,19 @@ impl fmt::Display for Value {
         match self {
              Value::Nil => write!(f, "nil"),
              Value::Bool(b) => write!(f, "{b}"),
-             Value::Number(n) => write!(f, "{n}")
+             Value::Number(n) => write!(f, "{n}"),
+             Value::Object(obj) =>
+                match obj.as_ref() {
+                    Object::String(s) => write!(f, "{s}"),
+                }
+                
         }
     }
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Object {
+    String(&'static str)
 }
 
 pub struct ValueArray {

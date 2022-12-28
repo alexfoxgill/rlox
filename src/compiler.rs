@@ -1,9 +1,9 @@
-use crate::{scanner::{Scanner, TokenType, Token}, chunk::{Chunk, OpCode}, value::Value, debug::disassemble_chunk};
+use crate::{scanner::{Scanner, TokenType, Token}, chunk::{Chunk, OpCode}, value::{Value, Object}, debug::disassemble_chunk, string_intern::StringInterner};
 
-pub fn compile(source: &str, chunk: &mut Chunk) -> bool {
+pub fn compile(source: &str, chunk: &mut Chunk, strings: &mut StringInterner) -> bool {
     let scanner = Scanner::init(source);
 
-    let mut parser = Parser::new(scanner, chunk);
+    let mut parser = Parser::new(scanner, chunk, strings);
 
     parser.advance();
     parser.expression();
@@ -16,6 +16,7 @@ pub fn compile(source: &str, chunk: &mut Chunk) -> bool {
 struct Parser<'c, 's> {
     scanner: Scanner<'s>,
     chunk: &'c mut Chunk,
+    strings: &'c mut StringInterner,
     current: Option<Token<'s>>,
     previous: Option<Token<'s>>,
     had_error: bool,
@@ -23,10 +24,11 @@ struct Parser<'c, 's> {
 }
 
 impl<'c, 's> Parser<'c, 's> {
-    fn new(scanner: Scanner<'s>, chunk: &'c mut Chunk) -> Parser<'c, 's> {
+    fn new(scanner: Scanner<'s>, chunk: &'c mut Chunk, strings: &'c mut StringInterner) -> Parser<'c, 's> {
         Parser {
             scanner,
             chunk,
+            strings,
             current: None,
             previous: None,
             had_error: false,
@@ -126,7 +128,7 @@ impl<'c, 's> Parser<'c, 's> {
             Less => ParseRule::prec(Comparison).infix(|p| p.binary()),
             LessEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
             Identifier => ParseRule::new(),
-            String => ParseRule::new(),
+            String => ParseRule::new().prefix(|p| p.string()),
             Number => ParseRule::new().prefix(|p| p.number()),
             TokenType::And => ParseRule::new(),
             Class => ParseRule::new(),
@@ -147,6 +149,13 @@ impl<'c, 's> Parser<'c, 's> {
             Error => ParseRule::new(),
             EOF => ParseRule::new(),
         }
+    }
+
+    fn string(&mut self) {
+        let str = String::from(self.previous().slice.trim_matches('\"'));
+        let (_, str) = self.strings.intern(&str);
+        let obj = Box::new(Object::String(str));
+        self.emit_constant(Value::Object(obj))
     }
 
     fn literal(&mut self) {
