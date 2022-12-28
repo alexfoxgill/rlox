@@ -11,7 +11,18 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
-    fn test_globals() {
+    fn global_assignment() {
+        interpret(r#"
+            var breakfast = "beignets";
+            var beverage = "cafe au lait";
+            breakfast = breakfast + " with " + beverage;
+            
+            print breakfast;
+        "#);
+    }
+
+    #[test]
+    fn globals() {
         interpret(r#"
             var beverage = "cafe au lait";
             var breakfast = "beignets with " + beverage;
@@ -20,14 +31,14 @@ mod tests {
     }
 
     #[test]
-    fn test_concat_string_intern() {
+    fn concat_string_intern() {
         interpret(r#"
             print "a" + "a" + "aa";
         "#);
     }
 
     #[test]
-    fn test_concat_twice() {
+    fn concat_twice() {
         interpret(r#"
             print "st" + "ri" + "ng";
         "#);

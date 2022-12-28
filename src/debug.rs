@@ -34,7 +34,8 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
     match op_code {
         OpCode::Constant
         | OpCode::DefineGlobal
-        | OpCode::GetGlobal => {
+        | OpCode::GetGlobal 
+        | OpCode::SetGlobal => {
             constant_instruction(op_code, chunk, offset)
         }
 
@@ -61,14 +62,16 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
 
 fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
     let constant = chunk.code[offset + 1];
-    print!("{op_code:16?} {constant:>4} ");
+    let s = format!("{op_code:?}");
+    print!("{s:>14} {constant:>4} ");
     print_value(&chunk.constants.values[constant as usize]);
     print!("\n");
     offset + 2
 }
 
 fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
-    println!("{op_code:?}");
+    let s = format!("{op_code:?}");
+    println!("{s:>14}");
     offset + 1
 }
 

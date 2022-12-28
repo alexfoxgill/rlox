@@ -190,18 +190,18 @@ impl<'c, 's> Parser<'c, 's> {
         use Precedence::*;
         use TokenType::*;
         match op_type {
-            LeftParen => ParseRule::new().prefix(|p| p.grouping()),
+            LeftParen => ParseRule::new().prefix(|p,_| p.grouping()),
             RightParen => ParseRule::new(),
             LeftBrace => ParseRule::new(),
             RightBrace => ParseRule::new(),
             Comma => ParseRule::new(),
             Dot => ParseRule::new(),
-            Minus => ParseRule::prec(Term).prefix(|p| p.unary()).infix(|p| p.binary()),
+            Minus => ParseRule::prec(Term).prefix(|p,_| p.unary()).infix(|p| p.binary()),
             Plus => ParseRule::prec(Term).infix(|p| p.binary()),
             SemiColon => ParseRule::new(),
             Slash => ParseRule::prec(Factor).infix(|p| p.binary()),
             Star => ParseRule::prec(Factor).infix(|p| p.binary()),
-            Bang => ParseRule::new().prefix(|p| p.unary()),
+            Bang => ParseRule::new().prefix(|p,_| p.unary()),
             BangEqual => ParseRule::prec(Equality).infix(|p| p.binary()),
             Equal => ParseRule::new(),
             EqualEqual => ParseRule::prec(Equality).infix(|p| p.binary()),
@@ -209,23 +209,23 @@ impl<'c, 's> Parser<'c, 's> {
             GreaterEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
             Less => ParseRule::prec(Comparison).infix(|p| p.binary()),
             LessEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
-            Identifier => ParseRule::new().prefix(|p| p.variable()),
-            String => ParseRule::new().prefix(|p| p.string()),
-            Number => ParseRule::new().prefix(|p| p.number()),
+            Identifier => ParseRule::new().prefix(|p,can_assign| p.variable(can_assign)),
+            String => ParseRule::new().prefix(|p,_| p.string()),
+            Number => ParseRule::new().prefix(|p,_| p.number()),
             TokenType::And => ParseRule::new(),
             Class => ParseRule::new(),
             Else => ParseRule::new(),
-            False => ParseRule::new().prefix(|p| p.literal()),
+            False => ParseRule::new().prefix(|p,_| p.literal()),
             For => ParseRule::new(),
             Fun => ParseRule::new(),
             If => ParseRule::new(),
-            Nil => ParseRule::new().prefix(|p| p.literal()),
+            Nil => ParseRule::new().prefix(|p,_| p.literal()),
             TokenType::Or => ParseRule::new(),
             Print => ParseRule::new(),
             Return => ParseRule::new(),
             Super => ParseRule::new(),
             This => ParseRule::new(),
-            True => ParseRule::new().prefix(|p| p.literal()),
+            True => ParseRule::new().prefix(|p,_| p.literal()),
             Var => ParseRule::new(),
             While => ParseRule::new(),
             Error => ParseRule::new(),
@@ -260,13 +260,19 @@ impl<'c, 's> Parser<'c, 's> {
         }
     }
 
-    fn variable(&mut self) {
-        self.named_variable(self.previous().slice.into())
+    fn variable(&mut self, can_assign: bool) {
+        self.named_variable(self.previous().slice.into(), can_assign)
     }
 
-    fn named_variable(&mut self, str: String) {
-        let arg = self.identifier_constant(str);
-        self.emit_bytes(OpCode::GetGlobal as u8, arg)
+    fn named_variable(&mut self, str: String, can_assign: bool) {
+        let name = self.identifier_constant(str);
+
+        if can_assign && self.match_token(TokenType::Equal) {
+            self.expression();
+            self.emit_bytes(OpCode::SetGlobal as u8, name)
+        } else {
+            self.emit_bytes(OpCode::GetGlobal as u8, name)
+        }
     }
 
     fn grouping(&mut self) {
@@ -280,17 +286,20 @@ impl<'c, 's> Parser<'c, 's> {
         let rule = self.get_rule(self.previous().typ);
 
         if let Some(prefix) = rule.prefix {
-            prefix(self);
+            let can_assign = precedence <= Precedence::Assignment;
+            prefix(self, can_assign);
 
-            while precedence <= self.get_rule(self.current().typ).precedence {
+            while self.get_rule(self.current().typ).precedence >= precedence {
                 self.advance();
                 let infix = self.get_rule(self.previous().typ).infix.unwrap();
                 infix(self);
             }
 
+            if can_assign && self.match_token(TokenType::Equal) {
+                self.error("Invalid assignment target")
+            }
         } else {
             self.error("Expect expression");
-            return;
         }
     }
 
@@ -430,7 +439,7 @@ impl Precedence {
 }
 
 struct ParseRule {
-    prefix: Option<Box<dyn Fn(&mut Parser) -> ()>>,
+    prefix: Option<Box<dyn Fn(&mut Parser, bool) -> ()>>,
     infix: Option<Box<dyn Fn(&mut Parser) -> ()>>,
     precedence: Precedence
 }
@@ -448,7 +457,7 @@ impl ParseRule {
         
     }
 
-    fn prefix(self, prefix: impl Fn(&mut Parser) -> () + 'static) -> ParseRule {
+    fn prefix(self, prefix: impl Fn(&mut Parser, bool) -> () + 'static) -> ParseRule {
         ParseRule {
             prefix: Some(Box::new(prefix)),
             infix: self.infix,

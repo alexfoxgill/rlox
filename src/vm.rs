@@ -1,10 +1,10 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::{HashMap, hash_map::Entry}, rc::Rc};
 
 use crate::{chunk::{Chunk, OpCode}, value::{Value, Object}, debug::{print_value, disassemble_instruction}, compiler::compile, string_intern::{StringInterner, StrId}};
 
 pub struct VM {
     pub chunk: Chunk,
-    pub ip: usize,
+    pub instruction_pointer: usize,
     pub stack: Vec<Value>,
     pub strings: StringInterner,
     pub globals: HashMap<StrId, Value>
@@ -14,7 +14,7 @@ impl VM {
     pub fn new(chunk: Chunk, strings: StringInterner) -> Self {
         Self {
             chunk,
-            ip: 0,
+            instruction_pointer: 0,
             stack: Vec::new(),
             strings,
             globals: HashMap::new()
@@ -26,8 +26,8 @@ impl VM {
     }
 
     pub fn read_byte(&mut self) -> u8 {
-        let byte = self.chunk.code[self.ip];
-        self.ip += 1;
+        let byte = self.chunk.code[self.instruction_pointer];
+        self.instruction_pointer += 1;
         byte
     }
 
@@ -66,7 +66,7 @@ impl VM {
             }
             print!("\n");
 
-            disassemble_instruction(&self.chunk, self.ip);
+            disassemble_instruction(&self.chunk, self.instruction_pointer);
 
             let op_code = match self.read_op_code() {
                 Some(x) => x,
@@ -173,22 +173,38 @@ impl VM {
                 }
 
                 OpCode::DefineGlobal => {
-                    let str = self.read_constant().as_string_id().unwrap();
+                    let global_name = self.read_constant().as_string_id().unwrap();
                     let val = self.pop();
-                    self.globals.insert(str, val);
+                    self.globals.insert(global_name, val);
                 }
 
                 OpCode::GetGlobal => {
-                    let str = self.read_constant().as_string_id().unwrap();
-                    match self.globals.get(&str) {
+                    let global_name = self.read_constant().as_string_id().unwrap();
+                    match self.globals.get(&global_name) {
                         Some(value) => {
                             self.push(value.clone())
                         }
                         None => {
-                            let name = self.strings.lookup(str);
+                            let name = self.strings.lookup(global_name);
                             self.runtime_error(&format!("Undefined variable '{name}'"));
                             return InterpretResult::RuntimeError;
                         }
+                    }
+                }
+
+                OpCode::SetGlobal => {
+                    let global_name = self.read_constant().as_string_id().unwrap();
+                    let val = self.peek(0);
+                    match self.globals.entry(global_name) {
+                        Entry::Occupied(mut e) => {
+                            e.insert(val);
+                        }
+                        Entry::Vacant(_) => {
+                            let name = self.strings.lookup(global_name);
+                            self.runtime_error(&format!("Undefined variable' {name}'"));
+                            return InterpretResult::RuntimeError;
+                        }
+                        
                     }
                 }
             }
@@ -207,10 +223,14 @@ impl VM {
         self.stack.pop().unwrap()
     }
 
+    pub fn peek(&self, i: usize) -> Value {
+        self.stack.iter().rev().nth(i).unwrap().clone()
+    }
+
     fn runtime_error(&mut self, error: &str) {
         eprintln!("{error}");
 
-        let ins = self.chunk.code[self.ip - 1];
+        let ins = self.chunk.code[self.instruction_pointer - 1];
         let line = self.chunk.lines[ins as usize];
         eprintln!("[line {line}] in script");
         self.reset_stack();
