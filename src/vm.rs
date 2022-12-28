@@ -71,9 +71,6 @@ impl VM {
 
             match op_code {
                 OpCode::Return => {
-                    let res = self.pop();
-                    print_value(&res);
-                    print!("\n");
                     return InterpretResult::OK
                 }
 
@@ -160,6 +157,11 @@ impl VM {
 
                 OpCode::False => {
                     self.push(Value::Bool(false))
+                }
+
+                OpCode::Print => {
+                    let val = self.pop();
+                    println!("{val}")
                 }
             }
         }

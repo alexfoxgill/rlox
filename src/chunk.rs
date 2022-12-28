@@ -23,6 +23,8 @@ pub enum OpCode {
     Not,
     Negate,
     Return,
+
+    Print,
 }
 
 impl TryFrom<u8> for OpCode {
@@ -49,6 +51,9 @@ impl TryFrom<u8> for OpCode {
             x if x == Not as u8 => Not,
             x if x == Negate as u8 => Negate,
             x if x == Return as u8 => Return,
+
+            x if x == Print as u8 => Print,
+
             _ => return Err("Unknown opcode".into())
         })
     }

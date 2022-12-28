@@ -5,12 +5,7 @@ pub fn compile(source: &str, chunk: &mut Chunk, strings: &mut StringInterner) ->
 
     let mut parser = Parser::new(scanner, chunk, strings);
 
-    parser.advance();
-    parser.expression();
-    parser.consume(TokenType::EOF, "Expect end of expression.");
-    parser.end_compiler();
-
-    !parser.had_error
+    parser.compile()
 }
 
 struct Parser<'c, 's> {
@@ -36,6 +31,18 @@ impl<'c, 's> Parser<'c, 's> {
         }
     }
 
+    fn compile(&mut self) -> bool {
+        self.advance();
+
+        while !self.match_token(TokenType::EOF) {
+            self.declaration();
+        }
+        
+        self.end_compiler();
+
+        !self.had_error
+    }
+
     fn end_compiler(&mut self) {
         self.emit_return();
 
@@ -59,6 +66,35 @@ impl<'c, 's> Parser<'c, 's> {
                 self.error_at_current(msg);
             }
         }
+    }
+
+    fn check(&self, typ: TokenType) -> bool {
+        self.current().typ == typ
+    }
+
+    fn match_token(&mut self, typ: TokenType) -> bool {
+        if !self.check(typ) {
+            false
+        } else {
+            self.advance();
+            true
+        }
+    }
+
+    fn declaration(&mut self) {
+        self.statement();
+    }
+
+    fn statement(&mut self) {
+        if !self.match_token(TokenType::Print) {
+            self.print_statement();
+        }
+    }
+
+    fn print_statement(&mut self) {
+        self.expression();
+        self.consume(TokenType::SemiColon, "Expect ';' after value");
+        self.emit_op_code(OpCode::Print)
     }
 
     fn expression(&mut self) {

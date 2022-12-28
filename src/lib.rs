@@ -27,36 +27,42 @@ mod tests {
     #[test]
     fn test_concat_string_intern() {
         interpret(r#"
-            "a" + "a" + "aa"
+            print "a" + "a" + "aa";
         "#);
     }
 
     #[test]
     fn test_concat_twice() {
         interpret(r#"
-            "st" + "ri" + "ng"
+            print "st" + "ri" + "ng";
         "#);
     }
 
     #[test]
     fn string_concat() {
-        interpret(r#" "a" + "b" "#);
+        interpret(r#"
+            print "a" + "b";
+        "#);
     }
 
     #[test]
     fn num_add() {
-        interpret(r#" 1 + 2 "#);
+        interpret(r#"
+            print 1 + 2;
+        "#);
     }
 
     #[test]
     fn num_div() {
-        interpret(r#" 10 / 2 "#);
+        interpret(r#"
+            print 10 / 2;
+        "#);
     }
 
     #[test]
     fn test_expression() {
         interpret(r#"
-            !(5 - 4 > 3 * 2 == !nil)
+            print !(5 - 4 > 3 * 2 == !nil);
         "#);
     }
 }
