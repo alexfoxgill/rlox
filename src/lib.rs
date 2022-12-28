@@ -1,5 +1,3 @@
-use crate::vm::interpret;
-
 pub mod compiler;
 pub mod chunk;
 pub mod debug;
@@ -8,21 +6,18 @@ pub mod scanner;
 pub mod vm;
 pub mod string_intern;
 
-fn repl() {
-    loop {
-        print!("> ");
-
-        let mut line = String::new();
-        std::io::stdin().read_line(&mut line).unwrap();
-
-        interpret(&line);
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::vm::interpret;
 
-    use super::*;
+    #[test]
+    fn test_globals() {
+        interpret(r#"
+            var beverage = "cafe au lait";
+            var breakfast = "beignets with " + beverage;
+            print breakfast;
+        "#);
+    }
 
     #[test]
     fn test_concat_string_intern() {

@@ -32,9 +32,12 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
     };
 
     match op_code {
-        OpCode::Constant => {
+        OpCode::Constant
+        | OpCode::DefineGlobal
+        | OpCode::GetGlobal => {
             constant_instruction(op_code, chunk, offset)
         }
+
         OpCode::Nil
         | OpCode::True
         | OpCode::False
@@ -49,6 +52,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         | OpCode::Negate
         | OpCode::Return
         | OpCode::Print
+        | OpCode::Pop
          => {
             simple_instruction(op_code, offset)
         }

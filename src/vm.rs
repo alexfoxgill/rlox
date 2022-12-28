@@ -1,10 +1,13 @@
-use crate::{chunk::{Chunk, OpCode}, value::{Value, Object}, debug::{print_value, disassemble_instruction}, compiler::compile, string_intern::StringInterner};
+use std::{collections::HashMap, rc::Rc};
+
+use crate::{chunk::{Chunk, OpCode}, value::{Value, Object}, debug::{print_value, disassemble_instruction}, compiler::compile, string_intern::{StringInterner, StrId}};
 
 pub struct VM {
     pub chunk: Chunk,
     pub ip: usize,
     pub stack: Vec<Value>,
     pub strings: StringInterner,
+    pub globals: HashMap<StrId, Value>
 }
 
 impl VM {
@@ -13,7 +16,8 @@ impl VM {
             chunk,
             ip: 0,
             stack: Vec::new(),
-            strings
+            strings,
+            globals: HashMap::new()
         }
     }
 
@@ -66,12 +70,16 @@ impl VM {
 
             let op_code = match self.read_op_code() {
                 Some(x) => x,
-                None =>  return InterpretResult::CompileError
+                None => return InterpretResult::CompileError
             };
 
             match op_code {
                 OpCode::Return => {
                     return InterpretResult::OK
+                }
+
+                OpCode::Pop => {
+                    self.pop();
                 }
 
                 OpCode::Equal => {
@@ -98,7 +106,7 @@ impl VM {
                                 concat.push_str(b);
                                 self.strings.intern(&concat)
                             };
-                            self.push(Value::Object(Box::new(Object::String(concat))));
+                            self.push(Value::Object(Rc::new(Object::String(concat))));
                             continue;
                         }
                         _ => ()
@@ -162,6 +170,26 @@ impl VM {
                 OpCode::Print => {
                     let val = self.pop();
                     println!("{val}")
+                }
+
+                OpCode::DefineGlobal => {
+                    let str = self.read_constant().as_string_id().unwrap();
+                    let val = self.pop();
+                    self.globals.insert(str, val);
+                }
+
+                OpCode::GetGlobal => {
+                    let str = self.read_constant().as_string_id().unwrap();
+                    match self.globals.get(&str) {
+                        Some(value) => {
+                            self.push(value.clone())
+                        }
+                        None => {
+                            let name = self.strings.lookup(str);
+                            self.runtime_error(&format!("Undefined variable '{name}'"));
+                            return InterpretResult::RuntimeError;
+                        }
+                    }
                 }
             }
         }

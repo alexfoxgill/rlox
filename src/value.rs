@@ -1,11 +1,14 @@
 use core::fmt;
+use std::rc::Rc;
+
+use crate::string_intern::StrId;
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum Value {
     Nil,
     Bool(bool),
     Number(f64),
-    Object(Box<Object>)
+    Object(Rc<Object>)
 }
 
 impl Value {
@@ -17,15 +20,27 @@ impl Value {
     }
 
     pub fn as_string(&self) -> Option<&'static str> {
-        match self {
-            Value::Object(o) => {
-                match o.as_ref() {
-                    Object::String(s) => Some(s),
-                    _ => None
-                }
+        if let Value::Object(o) = self {
+            if let Object::String(s) = o.as_ref() {
+                Some(s)
+            } else {
+                None
             }
-            _ => None
-        }   
+        } else {
+            None
+        }
+    }
+
+    pub fn as_string_id(&self) -> Option<StrId> {
+        if let Value::Object(o) = self {
+            if let Object::StringId(id) = o.as_ref() {
+                Some(*id)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 
@@ -38,15 +53,16 @@ impl fmt::Display for Value {
              Value::Object(obj) =>
                 match obj.as_ref() {
                     Object::String(s) => write!(f, "{s}"),
+                    Object::StringId(id) => write!(f, "{id:?}")
                 }
-                
         }
     }
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub enum Object {
-    String(&'static str)
+    String(&'static str),
+    StringId(StrId)
 }
 
 pub struct ValueArray {

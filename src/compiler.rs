@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{scanner::{Scanner, TokenType, Token}, chunk::{Chunk, OpCode}, value::{Value, Object}, debug::disassemble_chunk, string_intern::StringInterner};
 
 pub fn compile(source: &str, chunk: &mut Chunk, strings: &mut StringInterner) -> bool {
@@ -82,19 +84,63 @@ impl<'c, 's> Parser<'c, 's> {
     }
 
     fn declaration(&mut self) {
-        self.statement();
+        if self.match_token(TokenType::Var) {
+            self.var_declaration();
+        } else {
+            self.statement();
+        }
+
+        if self.panic_mode {
+            self.synchronize();
+        }
+    }
+
+    fn var_declaration(&mut self) {
+        let global = self.parse_variable("Expect variable name");
+
+        if self.match_token(TokenType::Equal) {
+            self.expression();
+        } else {
+            self.emit_op_code(OpCode::Nil);
+        }
+
+        self.consume(TokenType::SemiColon, "Expect ';' after variable declaration");
+
+        self.define_variable(global);
     }
 
     fn statement(&mut self) {
-        if !self.match_token(TokenType::Print) {
+        if self.match_token(TokenType::Print) {
             self.print_statement();
+        } else {
+            self.expression_statement();
         }
+    }
+
+    fn define_variable(&mut self, global: u8) {
+        self.emit_bytes(OpCode::DefineGlobal as u8, global)
+    }
+
+    fn parse_variable(&mut self, error: &str) -> u8 {
+        self.consume(TokenType::Identifier, error);
+        self.identifier_constant(self.previous().slice.into())
+    }
+
+    fn identifier_constant(&mut self, str: String) -> u8 {
+        let value = self.make_string_id(str);
+        self.make_constant(value)
     }
 
     fn print_statement(&mut self) {
         self.expression();
         self.consume(TokenType::SemiColon, "Expect ';' after value");
         self.emit_op_code(OpCode::Print)
+    }
+
+    fn expression_statement(&mut self) {
+        self.expression();
+        self.consume(TokenType::SemiColon, "Expect ';' after expression");
+        self.emit_op_code(OpCode::Pop)
     }
 
     fn expression(&mut self) {
@@ -163,7 +209,7 @@ impl<'c, 's> Parser<'c, 's> {
             GreaterEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
             Less => ParseRule::prec(Comparison).infix(|p| p.binary()),
             LessEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
-            Identifier => ParseRule::new(),
+            Identifier => ParseRule::new().prefix(|p| p.variable()),
             String => ParseRule::new().prefix(|p| p.string()),
             Number => ParseRule::new().prefix(|p| p.number()),
             TokenType::And => ParseRule::new(),
@@ -189,9 +235,20 @@ impl<'c, 's> Parser<'c, 's> {
 
     fn string(&mut self) {
         let str = String::from(self.previous().slice.trim_matches('\"'));
+        let obj = self.make_string(str);
+        self.emit_constant(obj)
+    }
+
+    fn make_string(&mut self, str: String) -> Value {
         let (_, str) = self.strings.intern(&str);
-        let obj = Box::new(Object::String(str));
-        self.emit_constant(Value::Object(obj))
+        let obj = Rc::new(Object::String(str));
+        Value::Object(obj)
+    }
+
+    fn make_string_id(&mut self, str: String) -> Value {
+        let (id, _) = self.strings.intern(&str);
+        let obj = Rc::new(Object::StringId(id));
+        Value::Object(obj)
     }
 
     fn literal(&mut self) {
@@ -201,6 +258,15 @@ impl<'c, 's> Parser<'c, 's> {
             TokenType::True => self.emit_op_code(OpCode::True),
             _ => ()
         }
+    }
+
+    fn variable(&mut self) {
+        self.named_variable(self.previous().slice.into())
+    }
+
+    fn named_variable(&mut self, str: String) {
+        let arg = self.identifier_constant(str);
+        self.emit_bytes(OpCode::GetGlobal as u8, arg)
     }
 
     fn grouping(&mut self) {
@@ -295,6 +361,24 @@ impl<'c, 's> Parser<'c, 's> {
 
     fn previous(&self) -> &Token {
         self.previous.as_ref().unwrap()
+    }
+
+    fn synchronize(&mut self) {
+        use TokenType::*;
+        self.panic_mode = false;
+
+        while self.current().typ != EOF {
+            if self.previous().typ == SemiColon {
+                return;
+            }
+
+            match self.current().typ {
+                Class | Fun | Var | For | If | While | Print | Return => { return; }
+                _ => ()
+            }
+        }
+
+        self.advance();
     }
 }
 

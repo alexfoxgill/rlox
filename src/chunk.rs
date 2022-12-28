@@ -25,6 +25,9 @@ pub enum OpCode {
     Return,
 
     Print,
+    Pop,
+    DefineGlobal,
+    GetGlobal,
 }
 
 impl TryFrom<u8> for OpCode {
@@ -53,7 +56,10 @@ impl TryFrom<u8> for OpCode {
             x if x == Return as u8 => Return,
 
             x if x == Print as u8 => Print,
-
+            x if x == Pop as u8 => Pop,
+            x if x == DefineGlobal as u8 => DefineGlobal,
+            x if x == GetGlobal as u8 => GetGlobal,
+            
             _ => return Err("Unknown opcode".into())
         })
     }
