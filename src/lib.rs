@@ -12,6 +12,28 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn while_loop() {
+        interpret(r#"
+            var x = 1;
+            while (x < 5) {
+                print x;
+                x = x + 1;
+            }
+        "#);
+    }
+
+    #[test]
+    fn if_condition() {
+        interpret(r#"
+            var x = 1;
+            if (x < 5) {
+                print x;
+                x = x + 1;
+            }
+        "#);
+    }
+
+    #[test]
     fn or() {
         interpret(r#"
             if (true or true) {
@@ -27,7 +49,6 @@ mod tests {
                 print "d";
             }
         "#);
-        
     }
 
     #[test]

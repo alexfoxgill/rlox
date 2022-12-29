@@ -32,6 +32,10 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
     };
 
     match op_code {
+        | OpCode::Loop => {
+            jump_instruction(op_code, -1, chunk, offset)
+        }
+
         | OpCode::Jump
         | OpCode::JumpIfFalse => {
             jump_instruction(op_code, 1, chunk, offset)
@@ -63,16 +67,18 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         | OpCode::Negate
         | OpCode::Return
         | OpCode::Print
-        | OpCode::Pop => simple_instruction(op_code, offset),
+        | OpCode::Pop => {
+            simple_instruction(op_code, offset)
+        }
     }
 }
 
-fn jump_instruction(op_code: OpCode, sign: usize, chunk: &Chunk, offset: usize) -> usize {
+fn jump_instruction(op_code: OpCode, sign: i32, chunk: &Chunk, offset: usize) -> usize {
     let b1 = chunk.code[offset + 1] as u16;
     let b2 = chunk.code[offset + 2] as u16;
     let jump = (b1 << 8) | b2;
     let s = format!("{op_code:?}");
-    let dest = (offset + 3 + sign) * (jump as usize);
+    let dest = (offset as i32 + 3) + (sign * jump as i32);
     println!("{s:<16} {offset:0>4} -> {dest}");
     offset + 3
 }

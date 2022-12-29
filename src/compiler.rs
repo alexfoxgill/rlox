@@ -143,6 +143,8 @@ impl<'c> Parser<'c> {
             self.print_statement();
         } else if self.match_token(TokenType::If) {
             self.if_statement();
+        } else if self.match_token(TokenType::While) {
+            self.while_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
             self.block();
@@ -173,6 +175,22 @@ impl<'c> Parser<'c> {
         }
 
         self.patch_jump(else_jump);
+    }
+
+    fn while_statement(&mut self) {
+        let loop_start = self.chunk.code.len();
+        self.consume(TokenType::LeftParen, "Expect '(' after 'while'");
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after condition");
+        
+        let exit_jump = self.emit_jump(OpCode::JumpIfFalse);
+        self.emit_op_code(OpCode::Pop);
+        self.statement();
+
+        self.emit_loop(loop_start);
+
+        self.patch_jump(exit_jump);
+        self.emit_op_code(OpCode::Pop);
     }
 
     fn define_variable(&mut self, addr: u8) {
@@ -522,12 +540,30 @@ impl<'c> Parser<'c> {
         })
     }
 
+    fn emit_loop(&mut self, start: usize) {
+        self.emit_op_code(OpCode::Loop);
+
+        let offset = self.chunk.code.len() - start + 2;
+        if offset > (u16::MAX as usize) {
+            self.error("Loop body too large");
+        }
+
+        self.emit_short(offset as u16);
+    }
+
     fn emit_return(&mut self) {
         self.emit_op_code(OpCode::Return)
     }
 
     fn emit_op_code(&mut self, op_code: OpCode) {
         self.emit_byte(op_code as u8)
+    }
+
+    fn emit_short(&mut self, short: u16) {
+        let b = ((short >> 8) & 0xFF) as u8;
+        self.emit_byte(b);
+        let b = (short & 0xFF) as u8;
+        self.emit_byte(b);
     }
 
     fn emit_byte(&mut self, byte: u8) {

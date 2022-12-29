@@ -33,6 +33,7 @@ pub enum OpCode {
     SetLocal,
     JumpIfFalse,
     Jump,
+    Loop,
 }
 
 impl TryFrom<u8> for OpCode {
@@ -71,6 +72,8 @@ impl TryFrom<u8> for OpCode {
 
             x if x == JumpIfFalse as u8 => JumpIfFalse,
             x if x == Jump as u8 => Jump,
+
+            x if x == Loop as u8 => Loop,
             
             _ => return Err("Unknown opcode".into()),
         })

@@ -260,6 +260,11 @@ impl VM {
                     let offset = self.read_short();
                     self.instruction_pointer += offset;
                 }
+
+                OpCode::Loop => {
+                    let offset = self.read_short();
+                    self.instruction_pointer -= offset;
+                }
             }
         }
     }
