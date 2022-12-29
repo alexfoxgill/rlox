@@ -12,6 +12,21 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn and() {
+        interpret(r#"
+            if (true and true) {
+                print "a";
+            }
+            if (true and false) {
+                print "b";
+            }
+            if (false and true) {
+                print "c";
+            }
+        "#);
+    }
+
+    #[test]
     fn if_else() {
         interpret(r#"
             if (false) {

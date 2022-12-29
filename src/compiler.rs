@@ -344,7 +344,7 @@ impl<'c> Parser<'c> {
             Identifier => ParseRule::new().prefix(|p, can_assign| p.variable(can_assign)),
             String => ParseRule::new().prefix(|p, _| p.string()),
             Number => ParseRule::new().prefix(|p, _| p.number()),
-            TokenType::And => ParseRule::new(),
+            TokenType::And => ParseRule::prec(Precedence::And).infix(|p| p.and()),
             Class => ParseRule::new(),
             Else => ParseRule::new(),
             False => ParseRule::new().prefix(|p, _| p.literal()),
@@ -433,6 +433,16 @@ impl<'c> Parser<'c> {
     fn grouping(&mut self) {
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after expression")
+    }
+
+    pub fn and(&mut self) {
+        let end_jump = self.emit_jump(OpCode::JumpIfFalse);
+
+        self.emit_op_code(OpCode::Pop);
+
+        self.parse_precedence(Precedence::And);
+
+        self.patch_jump(end_jump);
     }
 
     fn parse_precedence(&mut self, precedence: Precedence) {
