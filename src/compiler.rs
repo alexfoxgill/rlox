@@ -352,7 +352,7 @@ impl<'c> Parser<'c> {
             Fun => ParseRule::new(),
             If => ParseRule::new(),
             Nil => ParseRule::new().prefix(|p, _| p.literal()),
-            TokenType::Or => ParseRule::new(),
+            TokenType::Or => ParseRule::prec(Precedence::Or).infix(|p| p.or()),
             Print => ParseRule::new(),
             Return => ParseRule::new(),
             Super => ParseRule::new(),
@@ -441,6 +441,18 @@ impl<'c> Parser<'c> {
         self.emit_op_code(OpCode::Pop);
 
         self.parse_precedence(Precedence::And);
+
+        self.patch_jump(end_jump);
+    }
+
+    pub fn or(&mut self) {
+        let else_jump = self.emit_jump(OpCode::JumpIfFalse);
+        let end_jump = self.emit_jump(OpCode::Jump);
+
+        self.patch_jump(else_jump);
+        self.emit_op_code(OpCode::Pop);
+
+        self.parse_precedence(Precedence::Or);
 
         self.patch_jump(end_jump);
     }

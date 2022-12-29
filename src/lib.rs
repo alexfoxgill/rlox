@@ -12,6 +12,25 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn or() {
+        interpret(r#"
+            if (true or true) {
+                print "a";
+            }
+            if (true or false) {
+                print "b";
+            }
+            if (false or true) {
+                print "c";
+            }
+            if (false or false) {
+                print "d";
+            }
+        "#);
+        
+    }
+
+    #[test]
     fn and() {
         interpret(r#"
             if (true and true) {
@@ -22,6 +41,9 @@ mod tests {
             }
             if (false and true) {
                 print "c";
+            }
+            if (false and false) {
+                print "d";
             }
         "#);
     }
