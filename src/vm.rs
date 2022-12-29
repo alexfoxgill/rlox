@@ -230,6 +230,18 @@ impl VM {
                         }
                     }
                 }
+
+                OpCode::GetLocal => {
+                    let slot = self.read_byte();
+                    let value = self.stack[slot as usize].clone();
+                    self.push(value);
+                }
+
+                OpCode::SetLocal => {
+                    let slot = self.read_byte();
+                    let value = self.peek(0);
+                    self.stack[slot as usize] = value;
+                }
             }
         }
     }

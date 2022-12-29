@@ -32,11 +32,19 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
     };
 
     match op_code {
-        OpCode::Constant | OpCode::DefineGlobal | OpCode::GetGlobal | OpCode::SetGlobal => {
+        | OpCode::Constant
+        | OpCode::DefineGlobal
+        | OpCode::GetGlobal
+        | OpCode::SetGlobal => {
             constant_instruction(op_code, chunk, offset)
         }
 
-        OpCode::Nil
+        | OpCode::GetLocal
+        | OpCode::SetLocal => {
+            byte_instruction(op_code, chunk, offset)
+        }
+
+        | OpCode::Nil
         | OpCode::True
         | OpCode::False
         | OpCode::Equal
@@ -57,15 +65,22 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
 fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
     let constant = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
-    print!("{s:<14} {constant:>4} ");
+    print!("{s:<16} {constant:>4} ");
     print_value(&chunk.constants.values[constant as usize]);
     print!("\n");
     offset + 2
 }
 
+fn byte_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
+    let slot = chunk.code[offset + 1];
+    let s = format!("{op_code:?}");
+    println!("{s:<16} {slot:0>4}");
+    offset + 2
+}
+
 fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
     let s = format!("{op_code:?}");
-    println!("{s:<14}");
+    println!("{s:<16}");
     offset + 1
 }
 

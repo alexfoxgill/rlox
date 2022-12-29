@@ -236,7 +236,7 @@ impl Scanner {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Hash, Debug)]
 pub struct Token {
     pub typ: TokenType,
     pub line: usize,
@@ -247,9 +247,13 @@ impl Token {
     pub fn into_string(&self) -> String {
         (&self.slice).into()
     }
+
+    pub fn string_eq(&self, name: &Token) -> bool {
+        self.slice.as_str() == name.slice.as_str()
+    }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub enum TokenType {
     LeftParen,
     RightParen,

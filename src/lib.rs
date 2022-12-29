@@ -10,6 +10,18 @@ pub mod vm;
 #[cfg(test)]
 mod tests {
     use crate::vm::interpret;
+    
+    #[test]
+    fn scopes_and_locals() {
+        interpret(r#"
+            var a = 1;
+            {
+                var b = 2;
+                print b;
+            }
+            print a;
+        "#);
+    }
 
     #[test]
     fn global_assignment() {
