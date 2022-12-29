@@ -1,6 +1,15 @@
-use std::{collections::{HashMap, hash_map::Entry}, rc::Rc};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    rc::Rc,
+};
 
-use crate::{chunk::{Chunk, OpCode}, value::{Value, Object}, debug::{print_value, disassemble_instruction}, compiler::compile, string_intern::{StringInterner, StrId}};
+use crate::{
+    chunk::{Chunk, OpCode},
+    compiler::compile,
+    debug::{disassemble_instruction, print_value},
+    string_intern::{StrId, StringInterner},
+    value::{Object, Value},
+};
 
 pub fn interpret(source: &str) -> InterpretResult {
     let mut chunk = Chunk::new();
@@ -22,7 +31,7 @@ pub struct VM {
     pub instruction_pointer: usize,
     pub stack: Vec<Value>,
     pub strings: StringInterner,
-    pub globals: HashMap<StrId, Value>
+    pub globals: HashMap<StrId, Value>,
 }
 
 impl VM {
@@ -32,7 +41,7 @@ impl VM {
             instruction_pointer: 0,
             stack: Vec::new(),
             strings,
-            globals: HashMap::new()
+            globals: HashMap::new(),
         }
     }
 
@@ -63,7 +72,7 @@ impl VM {
             (Value::Number(a), Value::Number(b)) => {
                 self.push(f(a, b));
                 true
-            },
+            }
             _ => {
                 self.runtime_error("Operands must be numbers");
                 false
@@ -85,13 +94,11 @@ impl VM {
 
             let op_code = match self.read_op_code() {
                 Some(x) => x,
-                None => return InterpretResult::CompileError
+                None => return InterpretResult::CompileError,
             };
 
             match op_code {
-                OpCode::Return => {
-                    return InterpretResult::OK
-                }
+                OpCode::Return => return InterpretResult::OK,
 
                 OpCode::Pop => {
                     self.pop();
@@ -103,12 +110,16 @@ impl VM {
                     self.push(Value::Bool(a == b));
                 }
 
-                OpCode::Greater => if !self.binary_op(|a,b| Value::Bool(a > b)) {
-                    return InterpretResult::RuntimeError
+                OpCode::Greater => {
+                    if !self.binary_op(|a, b| Value::Bool(a > b)) {
+                        return InterpretResult::RuntimeError;
+                    }
                 }
 
-                OpCode::Less => if !self.binary_op(|a,b| Value::Bool(a < b)) {
-                    return InterpretResult::RuntimeError
+                OpCode::Less => {
+                    if !self.binary_op(|a, b| Value::Bool(a < b)) {
+                        return InterpretResult::RuntimeError;
+                    }
                 }
 
                 OpCode::Add => {
@@ -124,28 +135,34 @@ impl VM {
                             self.push(Value::Object(Rc::new(Object::String(concat))));
                             continue;
                         }
-                        _ => ()
+                        _ => (),
                     }
 
                     match (a.as_number(), b.as_number()) {
                         (Some(a), Some(b)) => {
                             self.push(Value::Number(a + b));
                             continue;
-                        },
-                        _ => ()
+                        }
+                        _ => (),
                     }
 
                     self.runtime_error("Operands must be strings or numbers");
-                    return InterpretResult::RuntimeError
+                    return InterpretResult::RuntimeError;
                 }
-                OpCode::Subtract => if !self.binary_op(|a,b| Value::Number(a - b)) {
-                    return InterpretResult::RuntimeError
+                OpCode::Subtract => {
+                    if !self.binary_op(|a, b| Value::Number(a - b)) {
+                        return InterpretResult::RuntimeError;
+                    }
                 }
-                OpCode::Multiply => if !self.binary_op(|a,b| Value::Number(a * b)) {
-                    return InterpretResult::RuntimeError
+                OpCode::Multiply => {
+                    if !self.binary_op(|a, b| Value::Number(a * b)) {
+                        return InterpretResult::RuntimeError;
+                    }
                 }
-                OpCode::Divide => if !self.binary_op(|a,b| Value::Number(a / b)) {
-                    return InterpretResult::RuntimeError
+                OpCode::Divide => {
+                    if !self.binary_op(|a, b| Value::Number(a / b)) {
+                        return InterpretResult::RuntimeError;
+                    }
                 }
 
                 OpCode::Not => {
@@ -170,17 +187,11 @@ impl VM {
                     self.push(constant);
                 }
 
-                OpCode::Nil => {
-                    self.push(Value::Nil)
-                }
+                OpCode::Nil => self.push(Value::Nil),
 
-                OpCode::True => {
-                    self.push(Value::Bool(true))
-                }
+                OpCode::True => self.push(Value::Bool(true)),
 
-                OpCode::False => {
-                    self.push(Value::Bool(false))
-                }
+                OpCode::False => self.push(Value::Bool(false)),
 
                 OpCode::Print => {
                     let val = self.pop();
@@ -196,9 +207,7 @@ impl VM {
                 OpCode::GetGlobal => {
                     let global_name = self.read_constant().as_string_id().unwrap();
                     match self.globals.get(&global_name) {
-                        Some(value) => {
-                            self.push(value.clone())
-                        }
+                        Some(value) => self.push(value.clone()),
                         None => {
                             let name = self.strings.lookup(global_name);
                             self.runtime_error(&format!("Undefined variable '{name}'"));
@@ -219,7 +228,6 @@ impl VM {
                             self.runtime_error(&format!("Undefined variable' {name}'"));
                             return InterpretResult::RuntimeError;
                         }
-                        
                     }
                 }
             }
@@ -255,7 +263,7 @@ impl VM {
 pub enum InterpretResult {
     OK,
     CompileError,
-    RuntimeError
+    RuntimeError,
 }
 
 fn is_falsey(value: Value) -> bool {
@@ -263,6 +271,6 @@ fn is_falsey(value: Value) -> bool {
         Value::Nil => true,
         Value::Bool(b) => !b,
         Value::Number(_) => false,
-        Value::Object(_) => false
+        Value::Object(_) => false,
     }
 }

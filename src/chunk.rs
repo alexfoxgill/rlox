@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::{value::{Value, ValueArray}};
+use crate::value::{Value, ValueArray};
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -62,11 +62,10 @@ impl TryFrom<u8> for OpCode {
             x if x == GetGlobal as u8 => GetGlobal,
             x if x == SetGlobal as u8 => SetGlobal,
 
-            _ => return Err("Unknown opcode".into())
+            _ => return Err("Unknown opcode".into()),
         })
     }
 }
-
 
 pub struct Chunk {
     pub code: Vec<u8>,

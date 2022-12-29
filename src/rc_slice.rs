@@ -1,22 +1,28 @@
-use std::{rc::Rc, ops::{Range, Deref}, fmt::Display};
+use std::{
+    fmt::Display,
+    ops::{Deref, Range},
+    rc::Rc,
+};
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct RcSlice {
     string: Rc<str>,
-    range: Range<usize>
+    range: Range<usize>,
 }
 
 impl RcSlice {
-    pub fn new(string: Rc<str>, range: Range<usize>) -> Self { Self { string, range } }
+    pub fn new(string: Rc<str>, range: Range<usize>) -> Self {
+        Self { string, range }
+    }
 
     pub fn as_str(&self) -> &str {
-        &* self
+        &*self
     }
 
     pub fn from_string(str: &str) -> RcSlice {
         RcSlice {
             string: Rc::from(str),
-            range: 0..str.len()
+            range: 0..str.len(),
         }
     }
 }

@@ -7,7 +7,7 @@ pub struct StringInterner {
     map: HashMap<&'static str, StrId>,
     vec: Vec<&'static str>,
     buf: String,
-    full: Vec<String>
+    full: Vec<String>,
 }
 
 impl StringInterner {
@@ -17,7 +17,7 @@ impl StringInterner {
             map: HashMap::new(),
             vec: Vec::new(),
             buf: String::with_capacity(cap),
-            full: Vec::new()
+            full: Vec::new(),
         }
     }
 
@@ -55,5 +55,4 @@ impl StringInterner {
 
         &*(interned as *const str)
     }
-
 }

@@ -10,7 +10,7 @@ pub struct Scanner {
     pub source: Rc<str>,
     pub start: usize,
     pub current: usize,
-    pub line: usize
+    pub line: usize,
 }
 
 impl Scanner {
@@ -19,7 +19,7 @@ impl Scanner {
             source,
             start: 0,
             current: 0,
-            line: 1
+            line: 1,
         }
     }
 
@@ -28,7 +28,7 @@ impl Scanner {
         self.start = self.current;
 
         if self.is_at_end() {
-            return self.make_token(TokenType::EOF)
+            return self.make_token(TokenType::EOF);
         }
 
         match self.advance() {
@@ -50,7 +50,7 @@ impl Scanner {
             '<' => self.token_if_match('=', TokenType::LessEqual, TokenType::Less),
             '>' => self.token_if_match('=', TokenType::GreaterEqual, TokenType::Greater),
             '"' => self.string(),
-            _ => self.error_token("Unexpected character")
+            _ => self.error_token("Unexpected character"),
         }
     }
 
@@ -73,7 +73,7 @@ impl Scanner {
                         'a' => self.check_keyword(2, "lse", TokenType::False),
                         'o' => self.check_keyword(2, "r", TokenType::For),
                         'u' => self.check_keyword(2, "n", TokenType::Fun),
-                        _ => TokenType::Identifier
+                        _ => TokenType::Identifier,
                     }
                 } else {
                     TokenType::Identifier
@@ -90,7 +90,7 @@ impl Scanner {
                     match self.get_char(self.start + 1) {
                         'h' => self.check_keyword(2, "is", TokenType::This),
                         'r' => self.check_keyword(2, "ue", TokenType::True),
-                        _ => TokenType::Identifier
+                        _ => TokenType::Identifier,
                     }
                 } else {
                     TokenType::Identifier
@@ -98,7 +98,7 @@ impl Scanner {
             }
             'v' => self.check_keyword(1, "ar", TokenType::Var),
             'w' => self.check_keyword(1, "hile", TokenType::While),
-            _ => TokenType::Identifier
+            _ => TokenType::Identifier,
         }
     }
 
@@ -180,7 +180,12 @@ impl Scanner {
         self.get_char(self.current)
     }
 
-    fn token_if_match(&mut self, expected: char, if_present: TokenType, if_absent: TokenType) -> Token {
+    fn token_if_match(
+        &mut self,
+        expected: char,
+        if_present: TokenType,
+        if_absent: TokenType,
+    ) -> Token {
         if self.match_char(expected) {
             self.make_token(if_present)
         } else {
@@ -218,7 +223,7 @@ impl Scanner {
         Token {
             typ,
             line: self.line,
-            slice: RcSlice::new(self.source.clone(), self.start..self.current)
+            slice: RcSlice::new(self.source.clone(), self.start..self.current),
         }
     }
 
@@ -226,7 +231,7 @@ impl Scanner {
         Token {
             typ: TokenType::Error,
             line: self.line,
-            slice: RcSlice::from_string(error)
+            slice: RcSlice::from_string(error),
         }
     }
 }
@@ -235,7 +240,7 @@ impl Scanner {
 pub struct Token {
     pub typ: TokenType,
     pub line: usize,
-    pub slice: RcSlice
+    pub slice: RcSlice,
 }
 
 impl Token {
@@ -289,25 +294,22 @@ pub enum TokenType {
     While,
 
     Error,
-    EOF
+    EOF,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn scan_single_token() {
         for (s, t) in [
             ("1", TokenType::Number),
             ("1.2", TokenType::Number),
-
             ("\"abc\"", TokenType::String),
-
             ("tru", TokenType::Identifier),
             ("tr", TokenType::Identifier),
             ("t", TokenType::Identifier),
-
             ("(", TokenType::LeftParen),
             (")", TokenType::RightParen),
             ("{", TokenType::LeftBrace),
@@ -327,7 +329,6 @@ mod tests {
             (">=", TokenType::GreaterEqual),
             ("<", TokenType::Less),
             ("<=", TokenType::LessEqual),
-
             ("and", TokenType::And),
             ("class", TokenType::Class),
             ("else", TokenType::Else),

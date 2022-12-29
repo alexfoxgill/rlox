@@ -1,6 +1,12 @@
 use std::rc::Rc;
 
-use crate::{scanner::{Scanner, TokenType, Token}, chunk::{Chunk, OpCode}, value::{Value, Object}, debug::disassemble_chunk, string_intern::StringInterner};
+use crate::{
+    chunk::{Chunk, OpCode},
+    debug::disassemble_chunk,
+    scanner::{Scanner, Token, TokenType},
+    string_intern::StringInterner,
+    value::{Object, Value},
+};
 
 pub fn compile(source: Rc<str>, chunk: &mut Chunk, strings: &mut StringInterner) -> bool {
     let scanner = Scanner::init(source);
@@ -17,7 +23,7 @@ struct Parser<'c> {
     current: Option<Token>,
     previous: Option<Token>,
     had_error: bool,
-    panic_mode: bool
+    panic_mode: bool,
 }
 
 impl<'c, 's> Parser<'c> {
@@ -29,7 +35,7 @@ impl<'c, 's> Parser<'c> {
             current: None,
             previous: None,
             had_error: false,
-            panic_mode: false
+            panic_mode: false,
         }
     }
 
@@ -39,7 +45,7 @@ impl<'c, 's> Parser<'c> {
         while !self.match_token(TokenType::EOF) {
             self.declaration();
         }
-        
+
         self.end_compiler();
 
         !self.had_error
@@ -104,7 +110,10 @@ impl<'c, 's> Parser<'c> {
             self.emit_op_code(OpCode::Nil);
         }
 
-        self.consume(TokenType::SemiColon, "Expect ';' after variable declaration");
+        self.consume(
+            TokenType::SemiColon,
+            "Expect ';' after variable declaration",
+        );
 
         self.define_variable(global);
     }
@@ -161,7 +170,7 @@ impl<'c, 's> Parser<'c> {
         match op_type {
             TokenType::Minus => self.emit_op_code(OpCode::Negate),
             TokenType::Bang => self.emit_op_code(OpCode::Not),
-            _ => ()
+            _ => (),
         }
     }
 
@@ -182,7 +191,7 @@ impl<'c, 's> Parser<'c> {
             TokenType::Minus => self.emit_op_code(OpCode::Subtract),
             TokenType::Star => self.emit_op_code(OpCode::Multiply),
             TokenType::Slash => self.emit_op_code(OpCode::Divide),
-            _ => ()
+            _ => (),
         }
     }
 
@@ -190,18 +199,20 @@ impl<'c, 's> Parser<'c> {
         use Precedence::*;
         use TokenType::*;
         match op_type {
-            LeftParen => ParseRule::new().prefix(|p,_| p.grouping()),
+            LeftParen => ParseRule::new().prefix(|p, _| p.grouping()),
             RightParen => ParseRule::new(),
             LeftBrace => ParseRule::new(),
             RightBrace => ParseRule::new(),
             Comma => ParseRule::new(),
             Dot => ParseRule::new(),
-            Minus => ParseRule::prec(Term).prefix(|p,_| p.unary()).infix(|p| p.binary()),
+            Minus => ParseRule::prec(Term)
+                .prefix(|p, _| p.unary())
+                .infix(|p| p.binary()),
             Plus => ParseRule::prec(Term).infix(|p| p.binary()),
             SemiColon => ParseRule::new(),
             Slash => ParseRule::prec(Factor).infix(|p| p.binary()),
             Star => ParseRule::prec(Factor).infix(|p| p.binary()),
-            Bang => ParseRule::new().prefix(|p,_| p.unary()),
+            Bang => ParseRule::new().prefix(|p, _| p.unary()),
             BangEqual => ParseRule::prec(Equality).infix(|p| p.binary()),
             Equal => ParseRule::new(),
             EqualEqual => ParseRule::prec(Equality).infix(|p| p.binary()),
@@ -209,23 +220,23 @@ impl<'c, 's> Parser<'c> {
             GreaterEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
             Less => ParseRule::prec(Comparison).infix(|p| p.binary()),
             LessEqual => ParseRule::prec(Comparison).infix(|p| p.binary()),
-            Identifier => ParseRule::new().prefix(|p,can_assign| p.variable(can_assign)),
-            String => ParseRule::new().prefix(|p,_| p.string()),
-            Number => ParseRule::new().prefix(|p,_| p.number()),
+            Identifier => ParseRule::new().prefix(|p, can_assign| p.variable(can_assign)),
+            String => ParseRule::new().prefix(|p, _| p.string()),
+            Number => ParseRule::new().prefix(|p, _| p.number()),
             TokenType::And => ParseRule::new(),
             Class => ParseRule::new(),
             Else => ParseRule::new(),
-            False => ParseRule::new().prefix(|p,_| p.literal()),
+            False => ParseRule::new().prefix(|p, _| p.literal()),
             For => ParseRule::new(),
             Fun => ParseRule::new(),
             If => ParseRule::new(),
-            Nil => ParseRule::new().prefix(|p,_| p.literal()),
+            Nil => ParseRule::new().prefix(|p, _| p.literal()),
             TokenType::Or => ParseRule::new(),
             Print => ParseRule::new(),
             Return => ParseRule::new(),
             Super => ParseRule::new(),
             This => ParseRule::new(),
-            True => ParseRule::new().prefix(|p,_| p.literal()),
+            True => ParseRule::new().prefix(|p, _| p.literal()),
             Var => ParseRule::new(),
             While => ParseRule::new(),
             Error => ParseRule::new(),
@@ -256,7 +267,7 @@ impl<'c, 's> Parser<'c> {
             TokenType::False => self.emit_op_code(OpCode::False),
             TokenType::Nil => self.emit_op_code(OpCode::Nil),
             TokenType::True => self.emit_op_code(OpCode::True),
-            _ => ()
+            _ => (),
         }
     }
 
@@ -382,8 +393,10 @@ impl<'c, 's> Parser<'c> {
             }
 
             match self.current().typ {
-                Class | Fun | Var | For | If | While | Print | Return => { return; }
-                _ => ()
+                Class | Fun | Var | For | If | While | Print | Return => {
+                    return;
+                }
+                _ => (),
             }
         }
 
@@ -417,7 +430,7 @@ enum Precedence {
     Factor,
     Unary,
     Call,
-    Primary
+    Primary,
 }
 
 impl Precedence {
@@ -441,7 +454,7 @@ impl Precedence {
 struct ParseRule {
     prefix: Option<Box<dyn Fn(&mut Parser, bool) -> ()>>,
     infix: Option<Box<dyn Fn(&mut Parser) -> ()>>,
-    precedence: Precedence
+    precedence: Precedence,
 }
 impl ParseRule {
     fn new() -> ParseRule {
@@ -452,16 +465,15 @@ impl ParseRule {
         ParseRule {
             prefix: None,
             infix: None,
-            precedence
+            precedence,
         }
-        
     }
 
     fn prefix(self, prefix: impl Fn(&mut Parser, bool) -> () + 'static) -> ParseRule {
         ParseRule {
             prefix: Some(Box::new(prefix)),
             infix: self.infix,
-            precedence: self.precedence
+            precedence: self.precedence,
         }
     }
 
@@ -469,8 +481,7 @@ impl ParseRule {
         ParseRule {
             prefix: self.prefix,
             infix: Some(Box::new(infix)),
-            precedence: self.precedence
+            precedence: self.precedence,
         }
     }
 }
-

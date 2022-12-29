@@ -8,14 +8,14 @@ pub enum Value {
     Nil,
     Bool(bool),
     Number(f64),
-    Object(Rc<Object>)
+    Object(Rc<Object>),
 }
 
 impl Value {
     pub fn as_number(&self) -> Option<f64> {
         match self {
             Value::Number(n) => Some(*n),
-            _ => None
+            _ => None,
         }
     }
 
@@ -47,14 +47,13 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-             Value::Nil => write!(f, "nil"),
-             Value::Bool(b) => write!(f, "{b}"),
-             Value::Number(n) => write!(f, "{n}"),
-             Value::Object(obj) =>
-                match obj.as_ref() {
-                    Object::String(s) => write!(f, "{s}"),
-                    Object::StringId(id) => write!(f, "{id:?}")
-                }
+            Value::Nil => write!(f, "nil"),
+            Value::Bool(b) => write!(f, "{b}"),
+            Value::Number(n) => write!(f, "{n}"),
+            Value::Object(obj) => match obj.as_ref() {
+                Object::String(s) => write!(f, "{s}"),
+                Object::StringId(id) => write!(f, "{id:?}"),
+            },
         }
     }
 }
@@ -62,7 +61,7 @@ impl fmt::Display for Value {
 #[derive(PartialEq, Debug, Clone)]
 pub enum Object {
     String(&'static str),
-    StringId(StrId)
+    StringId(StrId),
 }
 
 pub struct ValueArray {

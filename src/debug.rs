@@ -27,15 +27,12 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         Ok(x) => x,
         Err(_) => {
             print!("Unknown opcode {byte}");
-            return offset + 1
-        },
+            return offset + 1;
+        }
     };
 
     match op_code {
-        OpCode::Constant
-        | OpCode::DefineGlobal
-        | OpCode::GetGlobal 
-        | OpCode::SetGlobal => {
+        OpCode::Constant | OpCode::DefineGlobal | OpCode::GetGlobal | OpCode::SetGlobal => {
             constant_instruction(op_code, chunk, offset)
         }
 
@@ -53,10 +50,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         | OpCode::Negate
         | OpCode::Return
         | OpCode::Print
-        | OpCode::Pop
-         => {
-            simple_instruction(op_code, offset)
-        }
+        | OpCode::Pop => simple_instruction(op_code, offset),
     }
 }
 
