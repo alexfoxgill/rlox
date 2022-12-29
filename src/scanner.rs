@@ -1,16 +1,20 @@
+use std::rc::Rc;
+
+use crate::rc_slice::RcSlice;
+
 fn is_alpha(c: char) -> bool {
     c.is_ascii_alphabetic() || c == '_'
 }
 
-pub struct Scanner<'s> {
-    pub source: &'s str,
+pub struct Scanner {
+    pub source: Rc<str>,
     pub start: usize,
     pub current: usize,
     pub line: usize
 }
 
-impl<'s> Scanner<'s> {
-    pub fn init(source: &'s str) -> Scanner<'s> {
+impl Scanner {
+    pub fn init(source: Rc<str>) -> Scanner {
         Scanner {
             source,
             start: 0,
@@ -19,7 +23,7 @@ impl<'s> Scanner<'s> {
         }
     }
 
-    pub fn token(&mut self) -> Token<'s> {
+    pub fn token(&mut self) -> Token {
         self.skip_whitespace();
         self.start = self.current;
 
@@ -50,7 +54,7 @@ impl<'s> Scanner<'s> {
         }
     }
 
-    fn identifier(&mut self) -> Token<'s> {
+    fn identifier(&mut self) -> Token {
         while is_alpha(self.peek()) || self.peek().is_ascii_digit() {
             self.advance();
         }
@@ -109,7 +113,7 @@ impl<'s> Scanner<'s> {
         }
     }
 
-    fn number(&mut self) -> Token<'s> {
+    fn number(&mut self) -> Token {
         while self.peek().is_ascii_digit() {
             self.advance();
         }
@@ -125,7 +129,7 @@ impl<'s> Scanner<'s> {
         self.make_token(TokenType::Number)
     }
 
-    fn string(&mut self) -> Token<'s> {
+    fn string(&mut self) -> Token {
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
                 self.line += 1;
@@ -176,7 +180,7 @@ impl<'s> Scanner<'s> {
         self.get_char(self.current)
     }
 
-    fn token_if_match(&mut self, expected: char, if_present: TokenType, if_absent: TokenType) -> Token<'s> {
+    fn token_if_match(&mut self, expected: char, if_present: TokenType, if_absent: TokenType) -> Token {
         if self.match_char(expected) {
             self.make_token(if_present)
         } else {
@@ -210,34 +214,34 @@ impl<'s> Scanner<'s> {
         self.current == self.source.len()
     }
 
-    fn make_token(&self, typ: TokenType) -> Token<'s> {
+    fn make_token(&self, typ: TokenType) -> Token {
         Token {
             typ,
-            start: self.start,
-            length: self.current - self.start,
             line: self.line,
-            slice: &self.source[self.start..self.current]
+            slice: RcSlice::new(self.source.clone(), self.start..self.current)
         }
     }
 
-    fn error_token(&self, error: &'static str) -> Token<'s> {
+    fn error_token(&self, error: &'static str) -> Token {
         Token {
             typ: TokenType::Error,
-            start: 0,
-            length: error.len(),
             line: self.line,
-            slice: error
+            slice: RcSlice::from_string(error)
         }
     }
 }
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct Token<'a> {
+pub struct Token {
     pub typ: TokenType,
-    pub length: usize,
-    pub start: usize,
     pub line: usize,
-    pub slice: &'a str
+    pub slice: RcSlice
+}
+
+impl Token {
+    pub fn into_string(&self) -> String {
+        (&self.slice).into()
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -344,7 +348,7 @@ mod tests {
             let mut scanner = Scanner::init(s.into());
             let token = scanner.token();
 
-            assert_eq!(s, token.slice);
+            assert_eq!(s, token.slice.as_str());
             assert_eq!(token.typ, t)
         }
     }

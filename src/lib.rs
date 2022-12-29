@@ -5,6 +5,7 @@ pub mod value;
 pub mod scanner;
 pub mod vm;
 pub mod string_intern;
+pub mod rc_slice;
 
 #[cfg(test)]
 mod tests {

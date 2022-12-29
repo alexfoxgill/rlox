@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use crate::{scanner::{Scanner, TokenType, Token}, chunk::{Chunk, OpCode}, value::{Value, Object}, debug::disassemble_chunk, string_intern::StringInterner};
 
-pub fn compile(source: &str, chunk: &mut Chunk, strings: &mut StringInterner) -> bool {
+pub fn compile(source: Rc<str>, chunk: &mut Chunk, strings: &mut StringInterner) -> bool {
     let scanner = Scanner::init(source);
 
     let mut parser = Parser::new(scanner, chunk, strings);
@@ -10,18 +10,18 @@ pub fn compile(source: &str, chunk: &mut Chunk, strings: &mut StringInterner) ->
     parser.compile()
 }
 
-struct Parser<'c, 's> {
-    scanner: Scanner<'s>,
+struct Parser<'c> {
+    scanner: Scanner,
     chunk: &'c mut Chunk,
     strings: &'c mut StringInterner,
-    current: Option<Token<'s>>,
-    previous: Option<Token<'s>>,
+    current: Option<Token>,
+    previous: Option<Token>,
     had_error: bool,
     panic_mode: bool
 }
 
-impl<'c, 's> Parser<'c, 's> {
-    fn new(scanner: Scanner<'s>, chunk: &'c mut Chunk, strings: &'c mut StringInterner) -> Parser<'c, 's> {
+impl<'c, 's> Parser<'c> {
+    fn new(scanner: Scanner, chunk: &'c mut Chunk, strings: &'c mut StringInterner) -> Parser<'c> {
         Parser {
             scanner,
             chunk,
@@ -63,9 +63,9 @@ impl<'c, 's> Parser<'c, 's> {
                 self.current = Some(token);
                 break;
             } else {
-                let msg = token.slice;
+                let msg = token.into_string();
                 self.current = Some(token);
-                self.error_at_current(msg);
+                self.error_at_current(&msg);
             }
         }
     }
@@ -123,7 +123,7 @@ impl<'c, 's> Parser<'c, 's> {
 
     fn parse_variable(&mut self, error: &str) -> u8 {
         self.consume(TokenType::Identifier, error);
-        self.identifier_constant(self.previous().slice.into())
+        self.identifier_constant(self.previous().into_string())
     }
 
     fn identifier_constant(&mut self, str: String) -> u8 {
@@ -261,7 +261,7 @@ impl<'c, 's> Parser<'c, 's> {
     }
 
     fn variable(&mut self, can_assign: bool) {
-        self.named_variable(self.previous().slice.into(), can_assign)
+        self.named_variable(self.previous().into_string(), can_assign)
     }
 
     fn named_variable(&mut self, str: String, can_assign: bool) {

@@ -2,6 +2,21 @@ use std::{collections::{HashMap, hash_map::Entry}, rc::Rc};
 
 use crate::{chunk::{Chunk, OpCode}, value::{Value, Object}, debug::{print_value, disassemble_instruction}, compiler::compile, string_intern::{StringInterner, StrId}};
 
+pub fn interpret(source: &str) -> InterpretResult {
+    let mut chunk = Chunk::new();
+    let mut strings = StringInterner::with_capacity(16);
+
+    if !compile(Rc::from(source), &mut chunk, &mut strings) {
+        chunk.free();
+        return InterpretResult::CompileError;
+    }
+
+    let mut vm = VM::new(chunk, strings);
+    let res = vm.run();
+    vm.free();
+    res
+}
+
 pub struct VM {
     pub chunk: Chunk,
     pub instruction_pointer: usize,
@@ -241,21 +256,6 @@ pub enum InterpretResult {
     OK,
     CompileError,
     RuntimeError
-}
-
-pub fn interpret(source: &str) -> InterpretResult {
-    let mut chunk = Chunk::new();
-    let mut strings = StringInterner::with_capacity(16);
-
-    if !compile(source, &mut chunk, &mut strings) {
-        chunk.free();
-        return InterpretResult::CompileError;
-    }
-
-    let mut vm = VM::new(chunk, strings);
-    let res = vm.run();
-    vm.free();
-    res
 }
 
 fn is_falsey(value: Value) -> bool {

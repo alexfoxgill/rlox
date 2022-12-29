@@ -63,7 +63,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
 fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
     let constant = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
-    print!("{s:>14} {constant:>4} ");
+    print!("{s:<14} {constant:>4} ");
     print_value(&chunk.constants.values[constant as usize]);
     print!("\n");
     offset + 2
@@ -71,7 +71,7 @@ fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize 
 
 fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
     let s = format!("{op_code:?}");
-    println!("{s:>14}");
+    println!("{s:<14}");
     offset + 1
 }
 
