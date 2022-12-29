@@ -10,6 +10,19 @@ pub mod vm;
 #[cfg(test)]
 mod tests {
     use crate::vm::interpret;
+
+    #[test]
+    fn if_then() {
+        interpret(r#"
+            if (true) {
+                print "a";
+            }
+
+            if (false) {
+                print "b";
+            }
+        "#);
+    }
     
     #[test]
     fn scopes_and_locals() {

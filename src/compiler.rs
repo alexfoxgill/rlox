@@ -141,6 +141,8 @@ impl<'c> Parser<'c> {
     fn statement(&mut self) {
         if self.match_token(TokenType::Print) {
             self.print_statement();
+        } else if self.match_token(TokenType::If) {
+            self.if_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
             self.block();
@@ -148,6 +150,17 @@ impl<'c> Parser<'c> {
         } else {
             self.expression_statement();
         }
+    }
+
+    fn if_statement(&mut self) {
+        self.consume(TokenType::LeftParen, "Expect '(' after 'if'");
+        self.expression();
+        self.consume(TokenType::RightParen, "Expect ')' after condition");
+
+        let then_jump = self.emit_jump(OpCode::JumpIfFalse);
+        self.statement();
+
+        self.patch_jump(then_jump);
     }
 
     fn define_variable(&mut self, addr: u8) {
@@ -442,6 +455,24 @@ impl<'c> Parser<'c> {
         }
 
         self.error_at_current(message)
+    }
+
+    fn emit_jump(&mut self, instruction: OpCode) -> usize {
+        self.emit_op_code(instruction);
+        self.emit_byte(0xFF);
+        self.emit_byte(0xFF);
+        self.chunk.code.len() - 2
+    }
+
+    fn patch_jump(&mut self, offset: usize) {
+        let jump = self.chunk.code.len() - offset - 2;
+
+        if jump > u16::MAX as usize {
+            self.error("Too much code to jump over")
+        }
+
+        self.chunk.code[offset] = ((jump >> 8) & 0xFF) as u8;
+        self.chunk.code[offset + 1] = (jump & 0xFF) as u8;
     }
 
     fn emit_constant(&mut self, value: Value) {

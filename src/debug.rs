@@ -32,6 +32,10 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
     };
 
     match op_code {
+        | OpCode::JumpIfFalse => {
+            short_instruction(op_code, chunk, offset)
+        }
+
         | OpCode::Constant
         | OpCode::DefineGlobal
         | OpCode::GetGlobal
@@ -60,6 +64,15 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         | OpCode::Print
         | OpCode::Pop => simple_instruction(op_code, offset),
     }
+}
+
+fn short_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
+    let b1 = chunk.code[offset + 1] as u16;
+    let b2 = chunk.code[offset + 2] as u16;
+    let short = (b1 << 8) | b2;
+    let s = format!("{op_code:?}");
+    println!("{s:<16} {short:0>5}");
+    offset + 3
 }
 
 fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {

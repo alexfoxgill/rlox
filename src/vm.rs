@@ -55,6 +55,12 @@ impl VM {
         byte
     }
 
+    pub fn read_short(&mut self) -> usize {
+        let b1 = self.read_byte() as usize;
+        let b2 = self.read_byte() as usize;
+        (b1 << 8) | b2
+    }
+
     pub fn read_op_code(&mut self) -> Option<OpCode> {
         self.read_byte().try_into().ok()
     }
@@ -241,6 +247,13 @@ impl VM {
                     let slot = self.read_byte();
                     let value = self.peek(0);
                     self.stack[slot as usize] = value;
+                }
+
+                OpCode::JumpIfFalse => {
+                    let offset = self.read_short();
+                    if is_falsey(self.peek(0)) {
+                        self.instruction_pointer += offset;
+                    }
                 }
             }
         }
