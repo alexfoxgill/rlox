@@ -255,6 +255,11 @@ impl VM {
                         self.instruction_pointer += offset;
                     }
                 }
+
+                OpCode::Jump => {
+                    let offset = self.read_short();
+                    self.instruction_pointer += offset;
+                }
             }
         }
     }
