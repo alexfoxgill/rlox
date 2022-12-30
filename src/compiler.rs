@@ -325,17 +325,18 @@ impl<'c> Parser<'c> {
     }
 
     fn end_scope(&mut self) {
-        self.scope_depth -= 1;
-
         let to_pop = self.locals.iter().rev()
             .take_while(|local| match local.depth {
-                LocalDepth::Uninitialized => false,
-                LocalDepth::Initialized(d) => d > self.scope_depth,
+                LocalDepth::Uninitialized => true,
+                LocalDepth::Initialized(d) => d >= self.scope_depth,
             })
             .count();
 
+        self.scope_depth -= 1;
+
         for _ in 0..to_pop {
             self.emit_op_code(OpCode::Pop);
+            self.locals.pop();
         }
     }
 
@@ -487,7 +488,6 @@ impl<'c> Parser<'c> {
                     None
                 }
             })?;
-
 
         if depth == LocalDepth::Uninitialized {
             self.error("Can't read local variable in its own initializer")

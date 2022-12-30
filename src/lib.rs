@@ -101,14 +101,61 @@ mod tests {
             }
         "#);
     }
+
+    #[test]
+    fn begin_end_scope_with_override() {
+        interpret(r#"
+            var a = 99;
+            {
+                 a = 50;
+            }
+            print a;
+        "#);
+    }
+
+    #[test]
+    fn begin_end_scope_with_same_var() {
+        interpret(r#"
+            var a = 99;
+            {
+                var a = 50;
+            }
+            print a;
+        "#);
+    }
+
+    #[test]
+    fn begin_end_scope_with_var() {
+        interpret(r#"
+            var a = 99;
+            {
+                var b = 50;
+            }
+            print a;
+        "#);
+    }
+
+    #[test]
+    fn begin_end_scope() {
+        interpret(r#"
+            var a = 99;
+            {
+            }
+            print a;
+        "#);
+    }
     
     #[test]
     fn scopes_and_locals() {
         interpret(r#"
             var a = 1;
             {
-                var b = 2;
-                print b;
+                var a = 2;
+                {
+                    var a = 3;
+                    print a;
+                }
+                print a;
             }
             print a;
         "#);
