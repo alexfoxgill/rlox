@@ -12,10 +12,19 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn for_loop() {
+        interpret(r#"
+            for (var x = 50; x < 51; x = x + 1) {
+                print x;
+            }
+        "#);
+    }
+
+    #[test]
     fn while_loop() {
         interpret(r#"
             var x = 1;
-            while (x < 5) {
+            while (x < 2) {
                 print x;
                 x = x + 1;
             }

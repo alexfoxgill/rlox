@@ -79,7 +79,7 @@ fn jump_instruction(op_code: OpCode, sign: i32, chunk: &Chunk, offset: usize) ->
     let jump = (b1 << 8) | b2;
     let s = format!("{op_code:?}");
     let dest = (offset as i32 + 3) + (sign * jump as i32);
-    println!("{s:<16} {offset:0>4} -> {dest}");
+    println!("{s:<16} {offset:0>4} -> {dest:0>4}");
     offset + 3
 }
 

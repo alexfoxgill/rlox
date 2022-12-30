@@ -145,6 +145,8 @@ impl<'c> Parser<'c> {
             self.if_statement();
         } else if self.match_token(TokenType::While) {
             self.while_statement();
+        } else if self.match_token(TokenType::For) {
+            self.for_statement();
         } else if self.match_token(TokenType::LeftBrace) {
             self.begin_scope();
             self.block();
@@ -191,6 +193,52 @@ impl<'c> Parser<'c> {
 
         self.patch_jump(exit_jump);
         self.emit_op_code(OpCode::Pop);
+    }
+
+    fn for_statement(&mut self) {
+        self.begin_scope();
+        self.consume(TokenType::LeftParen, "Expect '(' after 'for'");
+
+        if !self.match_token(TokenType::SemiColon) {
+            if self.match_token(TokenType::Var) {
+                self.var_declaration();
+            } else {
+                self.expression_statement();
+            }
+        } 
+
+        let mut loop_start = self.chunk.code.len();
+        let mut exit_jump = None;
+        if !self.match_token(TokenType::SemiColon) {
+            self.expression();
+            self.consume(TokenType::SemiColon, "Expect ';' after loop");
+
+            exit_jump = Some(self.emit_jump(OpCode::JumpIfFalse));
+            self.emit_op_code(OpCode::Pop); // pop the condition
+        }
+
+        if !self.match_token(TokenType::RightParen) {
+            let body_jump = self.emit_jump(OpCode::Jump);
+            let increment_start = self.chunk.code.len();
+
+            self.expression();
+            self.emit_op_code(OpCode::Pop); // pop the increment expression
+            self.consume(TokenType::RightParen, "Expect ')' after for clauses");
+
+            self.emit_loop(loop_start);
+            loop_start = increment_start;
+            self.patch_jump(body_jump);
+        }
+
+        self.statement();
+        self.emit_loop(loop_start);
+
+        if let Some(exit_jump) = exit_jump {
+            self.patch_jump(exit_jump);
+            self.emit_op_code(OpCode::Pop); // pop the condition again
+        }
+
+        self.end_scope();
     }
 
     fn define_variable(&mut self, addr: u8) {
@@ -282,7 +330,7 @@ impl<'c> Parser<'c> {
         let to_pop = self.locals.iter().rev()
             .take_while(|local| match local.depth {
                 LocalDepth::Uninitialized => false,
-                LocalDepth::Initialized(d) => d >= self.scope_depth,
+                LocalDepth::Initialized(d) => d > self.scope_depth,
             })
             .count();
 
