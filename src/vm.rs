@@ -16,13 +16,11 @@ pub fn interpret(source: &str) -> InterpretResult {
     let mut strings = StringInterner::with_capacity(16);
 
     if !compile(Rc::from(source), &mut chunk, &mut strings) {
-        chunk.free();
         return InterpretResult::CompileError;
     }
 
     let mut vm = VM::new(chunk, strings);
     let res = vm.run();
-    vm.free();
     res
 }
 
@@ -43,10 +41,6 @@ impl VM {
             strings,
             globals: HashMap::new(),
         }
-    }
-
-    pub fn free(&mut self) {
-        self.chunk.free();
     }
 
     pub fn read_byte(&mut self) -> u8 {
