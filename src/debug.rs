@@ -87,7 +87,7 @@ fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize, strings: 
     let constant = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
     print!("{s:<16} {constant:>4} ");
-    print_value(&chunk.constants.values[constant as usize], strings);
+    print_value(&chunk.constants[constant as usize], strings);
     print!("\n");
     offset + 2
 }

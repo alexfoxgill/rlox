@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::value::{Value, ValueArray};
+use crate::value::{Value};
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -82,7 +82,7 @@ impl TryFrom<u8> for OpCode {
 
 pub struct Chunk {
     pub code: Vec<u8>,
-    pub constants: ValueArray,
+    pub constants: Vec<Value>,
     pub lines: Vec<usize>,
 }
 
@@ -90,7 +90,7 @@ impl Chunk {
     pub fn new() -> Chunk {
         Chunk {
             code: Vec::with_capacity(8),
-            constants: ValueArray::new(),
+            constants: Vec::with_capacity(8),
             lines: Vec::with_capacity(8),
         }
     }
@@ -106,12 +106,12 @@ impl Chunk {
 
     pub fn free(&mut self) {
         self.code.clear();
-        self.constants.free();
+        self.constants.clear();
         self.lines.clear();
     }
 
     pub fn add_constant(&mut self, value: Value) -> usize {
-        self.constants.write(value);
+        self.constants.push(value);
         self.constants.len() - 1
     }
 }

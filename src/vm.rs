@@ -67,7 +67,7 @@ impl VM {
 
     pub fn read_constant(&mut self) -> Value {
         let byte = self.read_byte();
-        self.chunk.constants.values[byte as usize].clone()
+        self.chunk.constants[byte as usize].clone()
     }
 
     fn binary_op<F: Fn(f64, f64) -> Value>(&mut self, f: F) -> bool {
