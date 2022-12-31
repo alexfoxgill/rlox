@@ -13,12 +13,16 @@ pub fn compile(source: Rc<str>) -> Option<VM> {
     Parser::new(scanner).compile()
 }
 
+struct Compiler {
+    locals: Vec<Local>,
+    scope_depth: usize
+}
+
 struct Parser {
     scanner: Scanner,
     chunk: Chunk,
     strings: StringInterner,
-    locals: Vec<Local>,
-    scope_depth: usize,
+    compiler: Compiler,
     current: Option<Token>,
     previous: Option<Token>,
     had_error: bool,
@@ -48,8 +52,10 @@ impl Parser {
             scanner,
             chunk: Chunk::new(),
             strings: StringInterner::with_capacity(16),
-            locals: Vec::new(),
-            scope_depth: 0,
+            compiler: Compiler {
+                locals: Vec::new(),
+                scope_depth: 0,
+            },
             current: None,
             previous: None,
             had_error: false,
@@ -243,9 +249,9 @@ impl Parser {
     }
 
     fn define_variable(&mut self, addr: u8) {
-        if self.scope_depth > 0 {
-            if let Some(x) = self.locals.last_mut() {
-                x.initialize(self.scope_depth)
+        if self.compiler.scope_depth > 0 {
+            if let Some(x) = self.compiler.locals.last_mut() {
+                x.initialize(self.compiler.scope_depth)
             }
         } else {
             self.emit_bytes(OpCode::DefineGlobal as u8, addr)
@@ -257,7 +263,7 @@ impl Parser {
         self.consume(TokenType::Identifier, error);
 
         self.declare_variable();
-        if self.scope_depth > 0 {
+        if self.compiler.scope_depth > 0 {
             return 0;
         }
 
@@ -265,16 +271,16 @@ impl Parser {
     }
 
     fn declare_variable(&mut self) {
-        if self.scope_depth == 0 {
+        if self.compiler.scope_depth == 0 {
             return;
         }
 
         let name = self.previous();
 
-        let existing = self.locals.iter().rev()
+        let existing = self.compiler.locals.iter().rev()
             .take_while(|local| match local.depth {
                 LocalDepth::Uninitialized => false,
-                LocalDepth::Initialized(d) => d >= self.scope_depth,
+                LocalDepth::Initialized(d) => d >= self.compiler.scope_depth,
             })
             .any(|local| local.name.string_eq(&name));
 
@@ -286,11 +292,11 @@ impl Parser {
     }
 
     fn add_local(&mut self, name: Token) {
-        if self.locals.len() == u8::MAX as usize {
+        if self.compiler.locals.len() == u8::MAX as usize {
             self.error("Too many local variables in function");
             return;
         }
-        self.locals.push(Local {
+        self.compiler.locals.push(Local {
             name,
             depth: LocalDepth::Uninitialized
         })
@@ -314,7 +320,7 @@ impl Parser {
     }
 
     fn begin_scope(&mut self) {
-        self.scope_depth += 1;
+        self.compiler.scope_depth += 1;
     }
 
     fn block(&mut self) {
@@ -326,18 +332,18 @@ impl Parser {
     }
 
     fn end_scope(&mut self) {
-        let to_pop = self.locals.iter().rev()
+        let to_pop = self.compiler.locals.iter().rev()
             .take_while(|local| match local.depth {
                 LocalDepth::Uninitialized => true,
-                LocalDepth::Initialized(d) => d >= self.scope_depth,
+                LocalDepth::Initialized(d) => d >= self.compiler.scope_depth,
             })
             .count();
 
-        self.scope_depth -= 1;
+        self.compiler.scope_depth -= 1;
 
         for _ in 0..to_pop {
             self.emit_op_code(OpCode::Pop);
-            self.locals.pop();
+            self.compiler.locals.pop();
         }
     }
 
@@ -481,7 +487,7 @@ impl Parser {
     }
 
     fn resolve_local(&mut self, name: &Token) -> Option<u8> {
-        let (i, depth) = self.locals.iter().enumerate().rev()
+        let (i, depth) = self.compiler.locals.iter().enumerate().rev()
             .find_map(|(i, local)| {
                 if local.name.string_eq(name) {
                     Some((i as u8, local.depth))
