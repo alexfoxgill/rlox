@@ -231,10 +231,10 @@ mod tests {
     }
 
     #[test]
-    fn test_expression() {
+    fn hello_world() {
         interpret(
             r#"
-            print !(5 - 4 > 3 * 2 == !nil);
+            print "hello world";
         "#,
         );
     }

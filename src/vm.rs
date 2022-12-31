@@ -8,13 +8,12 @@ use crate::{
     compiler::compile,
     debug::{disassemble_instruction, print_value},
     string_intern::{StrId, StringInterner},
-    value::{Object, Value},
+    value::{Object, Value, Function},
 };
 
 pub fn interpret(source: &str) -> InterpretResult {
     if let Some(mut vm) = compile(Rc::from(source)) {
-        let res = vm.run();
-        res
+        vm.run()
     } else {
         return InterpretResult::CompileError;
     }
@@ -22,27 +21,27 @@ pub fn interpret(source: &str) -> InterpretResult {
 }
 
 pub struct VM {
-    pub chunk: Chunk,
-    pub instruction_pointer: usize,
+    pub frames: Vec<CallFrame>,
     pub stack: Vec<Value>,
     pub strings: StringInterner,
+    pub functions: Vec<Function>,
     pub globals: HashMap<StrId, Value>,
 }
 
 impl VM {
-    pub fn new(chunk: Chunk, strings: StringInterner) -> Self {
+    pub fn new(strings: StringInterner, functions: Vec<Function>) -> Self {
         Self {
-            chunk,
-            instruction_pointer: 0,
+            frames: Vec::new(),
             stack: Vec::new(),
             strings,
+            functions,
             globals: HashMap::new(),
         }
     }
 
     pub fn read_byte(&mut self) -> u8 {
-        let byte = self.chunk.code[self.instruction_pointer];
-        self.instruction_pointer += 1;
+        let byte = self.chunk().code[self.frame().instruction_pointer];
+        self.frame_mut().instruction_pointer += 1;
         byte
     }
 
@@ -58,7 +57,7 @@ impl VM {
 
     pub fn read_constant(&mut self) -> Value {
         let byte = self.read_byte();
-        self.chunk.constants[byte as usize].clone()
+        self.chunk().constants[byte as usize].clone()
     }
 
     fn binary_op<F: Fn(f64, f64) -> Value>(&mut self, f: F) -> bool {
@@ -82,12 +81,12 @@ impl VM {
             print!("          ");
             for value in self.stack.iter() {
                 print!("[ ");
-                print_value(value, &self.strings);
+                print_value(value, &self.strings, &self.functions);
                 print!(" ]");
             }
             print!("\n");
 
-            disassemble_instruction(&self.chunk, self.instruction_pointer, &self.strings);
+            disassemble_instruction(&self.chunk(), self.frame().instruction_pointer, &self.strings, &self.functions);
 
             let op_code = match self.read_op_code() {
                 Some(x) => x,
@@ -192,7 +191,7 @@ impl VM {
 
                 OpCode::Print => {
                     let val = self.pop();
-                    print_value(&val, &self.strings)
+                    print_value(&val, &self.strings, &self.functions)
                 }
 
                 OpCode::DefineGlobal => {
@@ -229,35 +228,50 @@ impl VM {
                 }
 
                 OpCode::GetLocal => {
-                    let slot = self.read_byte();
-                    let value = self.stack[slot as usize].clone();
+                    let slot = self.read_byte() as usize;
+                    let slot = self.frame().slot_start + slot;
+                    let value = self.stack[slot].clone();
                     self.push(value);
                 }
 
                 OpCode::SetLocal => {
-                    let slot = self.read_byte();
+                    let slot = self.read_byte() as usize;
+                    let slot = self.frame().slot_start + slot;
                     let value = self.peek(0);
-                    self.stack[slot as usize] = value;
+                    self.stack[slot] = value;
                 }
 
                 OpCode::JumpIfFalse => {
                     let offset = self.read_short();
                     if is_falsey(self.peek(0)) {
-                        self.instruction_pointer += offset;
+                        self.frame_mut().instruction_pointer += offset;
                     }
                 }
 
                 OpCode::Jump => {
                     let offset = self.read_short();
-                    self.instruction_pointer += offset;
+                    self.frame_mut().instruction_pointer += offset;
                 }
 
                 OpCode::Loop => {
                     let offset = self.read_short();
-                    self.instruction_pointer -= offset;
+                    self.frame_mut().instruction_pointer -= offset;
                 }
             }
         }
+    }
+
+    fn frame(&self) -> &CallFrame {
+        self.frames.last().unwrap()
+    }
+
+    fn frame_mut(&mut self) -> &mut CallFrame {
+        self.frames.last_mut().unwrap()
+    }
+
+    fn chunk(&self) -> &Chunk {
+        let f = self.frame().function;
+        &self.functions[f].chunk
     }
 
     pub fn reset_stack(&mut self) {
@@ -279,8 +293,8 @@ impl VM {
     fn runtime_error(&mut self, error: &str) {
         eprintln!("{error}");
 
-        let ins = self.chunk.code[self.instruction_pointer - 1];
-        let line = self.chunk.lines[ins as usize];
+        let ins = self.chunk().code[self.frame().instruction_pointer - 1];
+        let line = self.chunk().lines[ins as usize];
         eprintln!("[line {line}] in script");
         self.reset_stack();
     }
@@ -299,4 +313,10 @@ fn is_falsey(value: Value) -> bool {
         Value::Number(_) => false,
         Value::Object(_) => false,
     }
+}
+
+pub struct CallFrame {
+    pub function: usize,
+    pub instruction_pointer: usize,
+    pub slot_start: usize
 }

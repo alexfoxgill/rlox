@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::string_intern::StrId;
+use crate::{string_intern::StrId, chunk::Chunk};
 
 #[derive(PartialEq, Clone)]
 pub enum Value {
@@ -41,5 +41,17 @@ impl Value {
 pub enum Object {
     String(&'static str),
     StringId(StrId),
+    Function(usize)
 }
 
+pub struct Function {
+    pub arity: usize,
+    pub chunk: Chunk,
+    pub name: StrId
+}
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
+pub enum FunctionType {
+    Script,
+    Function
+}

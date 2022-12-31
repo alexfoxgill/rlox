@@ -4,8 +4,8 @@ use crate::{
     chunk::{Chunk, OpCode},
     debug::disassemble_chunk,
     scanner::{Scanner, Token, TokenType},
-    string_intern::StringInterner,
-    value::{Object, Value}, vm::VM,
+    string_intern::{StringInterner},
+    value::{Object, Value, Function, FunctionType}, vm::{VM, CallFrame},
 };
 
 pub fn compile(source: Rc<str>) -> Option<VM> {
@@ -14,14 +14,17 @@ pub fn compile(source: Rc<str>) -> Option<VM> {
 }
 
 struct Compiler {
+    function: usize,
+    function_type: FunctionType,
+    
     locals: Vec<Local>,
     scope_depth: usize
 }
 
 struct Parser {
     scanner: Scanner,
-    chunk: Chunk,
     strings: StringInterner,
+    functions: Vec<Function>,
     compiler: Compiler,
     current: Option<Token>,
     previous: Option<Token>,
@@ -48,11 +51,13 @@ enum LocalDepth {
 
 impl Parser {
     fn new(scanner: Scanner) -> Parser {
-        Parser {
+        let mut parser = Parser {
             scanner,
-            chunk: Chunk::new(),
             strings: StringInterner::with_capacity(16),
+            functions: Vec::new(),
             compiler: Compiler {
+                function: 0,
+                function_type: FunctionType::Script,
                 locals: Vec::new(),
                 scope_depth: 0,
             },
@@ -60,7 +65,9 @@ impl Parser {
             previous: None,
             had_error: false,
             panic_mode: false,
-        }
+        };
+        parser.new_function("<script>");
+        parser
     }
 
     fn compile(mut self) -> Option<VM> {
@@ -75,18 +82,46 @@ impl Parser {
         if self.had_error {
             None
         } else {
-            Some(VM::new(self.chunk, self.strings))
+            let mut vm = VM::new(self.strings, self.functions);
+            vm.push(Value::Object(Rc::new(Object::Function(0))));
+            vm.frames.push(CallFrame {
+                function: 0,
+                instruction_pointer: 0,
+                slot_start: 1
+            });
+            Some(vm)
         }
     }
 
     fn end_compiler(&mut self) {
         self.emit_return();
 
+        let f_id = self.compiler.function;
         if !self.had_error {
-            disassemble_chunk(&self.chunk, "code", &self.strings)
+            let f = &self.functions[f_id];
+            let name = self.strings.lookup(f.name);
+            disassemble_chunk(&f.chunk, name, &self.strings, &self.functions)
         }
     }
 
+    fn function(&self) -> &Function {
+        let f_id = self.compiler.function;
+        &self.functions[f_id]
+    }
+
+    fn function_mut(&mut self) -> &mut Function {
+        let f_id = self.compiler.function;
+        &mut self.functions[f_id]
+    }
+
+    fn chunk(&self) -> &Chunk {
+        &self.function().chunk
+    }
+
+    fn chunk_mut(&mut self) -> &mut Chunk {
+        &mut self.function_mut().chunk
+    }
+    
     fn advance(&mut self) {
         self.previous = std::mem::take(&mut self.current);
 
@@ -187,7 +222,7 @@ impl Parser {
     }
 
     fn while_statement(&mut self) {
-        let loop_start = self.chunk.code.len();
+        let loop_start = self.chunk().code.len();
         self.consume(TokenType::LeftParen, "Expect '(' after 'while'");
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after condition");
@@ -214,7 +249,7 @@ impl Parser {
             }
         } 
 
-        let mut loop_start = self.chunk.code.len();
+        let mut loop_start = self.chunk().code.len();
         let mut exit_jump = None;
         if !self.match_token(TokenType::SemiColon) {
             self.expression();
@@ -226,7 +261,7 @@ impl Parser {
 
         if !self.match_token(TokenType::RightParen) {
             let body_jump = self.emit_jump(OpCode::Jump);
-            let increment_start = self.chunk.code.len();
+            let increment_start = self.chunk().code.len();
 
             self.expression();
             self.emit_op_code(OpCode::Pop); // pop the increment expression
@@ -568,18 +603,18 @@ impl Parser {
         self.emit_op_code(instruction);
         self.emit_byte(0xFF);
         self.emit_byte(0xFF);
-        self.chunk.code.len() - 2
+        self.chunk().code.len() - 2
     }
 
     fn patch_jump(&mut self, offset: usize) {
-        let jump = self.chunk.code.len() - offset - 2;
+        let jump = self.chunk().code.len() - offset - 2;
 
         if jump > u16::MAX as usize {
             self.error("Too much code to jump over")
         }
 
-        self.chunk.code[offset] = ((jump >> 8) & 0xFF) as u8;
-        self.chunk.code[offset + 1] = (jump & 0xFF) as u8;
+        self.chunk_mut().code[offset] = ((jump >> 8) & 0xFF) as u8;
+        self.chunk_mut().code[offset + 1] = (jump & 0xFF) as u8;
     }
 
     fn emit_constant(&mut self, value: Value) {
@@ -588,7 +623,7 @@ impl Parser {
     }
 
     fn make_constant(&mut self, value: Value) -> u8 {
-        let c = self.chunk.add_constant(value);
+        let c = self.chunk_mut().add_constant(value);
         c.try_into().unwrap_or_else(|_| {
             self.error("Too many constants in one chunk");
             0
@@ -598,7 +633,7 @@ impl Parser {
     fn emit_loop(&mut self, start: usize) {
         self.emit_op_code(OpCode::Loop);
 
-        let offset = self.chunk.code.len() - start + 2;
+        let offset = self.chunk().code.len() - start + 2;
         if offset > (u16::MAX as usize) {
             self.error("Loop body too large");
         }
@@ -623,13 +658,13 @@ impl Parser {
 
     fn emit_byte(&mut self, byte: u8) {
         let line = self.previous().line;
-        self.chunk.write(byte, line)
+        self.chunk_mut().write(byte, line)
     }
 
     fn emit_bytes(&mut self, a: u8, b: u8) {
         let line = self.previous().line;
-        self.chunk.write(a, line);
-        self.chunk.write(b, line);
+        self.chunk_mut().write(a, line);
+        self.chunk_mut().write(b, line);
     }
 
     fn error_at_current(&mut self, message: &str) {
@@ -656,6 +691,13 @@ impl Parser {
 
     fn previous(&self) -> Token {
         self.previous.as_ref().unwrap().clone()
+    }
+
+    fn new_function(&mut self, name: &str) -> Value {
+        let id = self.functions.len();
+        let (name, _) = self.strings.intern(name);
+        self.functions.push(Function { arity: 0, chunk: Chunk::new(), name });
+        Value::Object(Rc::new(Object::Function(id)))
     }
 
     fn synchronize(&mut self) {
