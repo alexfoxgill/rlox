@@ -1,9 +1,8 @@
-use core::fmt;
 use std::rc::Rc;
 
 use crate::string_intern::StrId;
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub enum Value {
     Nil,
     Bool(bool),
@@ -44,21 +43,7 @@ impl Value {
     }
 }
 
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::Nil => write!(f, "nil"),
-            Value::Bool(b) => write!(f, "{b}"),
-            Value::Number(n) => write!(f, "{n}"),
-            Value::Object(obj) => match obj.as_ref() {
-                Object::String(s) => write!(f, "{s}"),
-                Object::StringId(id) => write!(f, "{id:?}"),
-            },
-        }
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum Object {
     String(&'static str),
     StringId(StrId),

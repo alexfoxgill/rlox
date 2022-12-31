@@ -1,18 +1,18 @@
 use crate::{
     chunk::{Chunk, OpCode},
-    value::Value,
+    value::{Value, Object}, string_intern::StringInterner,
 };
 
-pub fn disassemble_chunk(chunk: &Chunk, name: &str) {
+pub fn disassemble_chunk(chunk: &Chunk, name: &str, strings: &StringInterner) {
     println!("== {name} ==");
 
     let mut offset = 0;
     while offset < chunk.code.len() {
-        offset = disassemble_instruction(chunk, offset);
+        offset = disassemble_instruction(chunk, offset, strings);
     }
 }
 
-pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
+pub fn disassemble_instruction(chunk: &Chunk, offset: usize, strings: &StringInterner) -> usize {
     print!("{offset:0>4} ");
     let line = chunk.lines[offset];
     if offset > 0 && line == chunk.lines[offset - 1] {
@@ -45,7 +45,7 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize) -> usize {
         | OpCode::DefineGlobal
         | OpCode::GetGlobal
         | OpCode::SetGlobal => {
-            constant_instruction(op_code, chunk, offset)
+            constant_instruction(op_code, chunk, offset, strings)
         }
 
         | OpCode::GetLocal
@@ -83,11 +83,11 @@ fn jump_instruction(op_code: OpCode, sign: i32, chunk: &Chunk, offset: usize) ->
     offset + 3
 }
 
-fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
+fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize, strings: &StringInterner) -> usize {
     let constant = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
     print!("{s:<16} {constant:>4} ");
-    print_value(&chunk.constants.values[constant as usize]);
+    print_value(&chunk.constants.values[constant as usize], strings);
     print!("\n");
     offset + 2
 }
@@ -105,6 +105,18 @@ fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
     offset + 1
 }
 
-pub fn print_value(value: &Value) {
-    print!("{value}")
+pub fn print_value(value: &Value, strings: &StringInterner) {
+    match value {
+        Value::Nil => print!("nil"),
+        Value::Bool(b) => print!("{b}"),
+        Value::Number(n) => print!("{n}"),
+        Value::Object(o) =>
+            match o.as_ref() {
+                Object::String(s) => print!("{s}"),
+                Object::StringId(id) => {
+                    let s = strings.lookup(*id);
+                    print!("{s}")
+                },
+            },
+    }
 }

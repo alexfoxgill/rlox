@@ -91,12 +91,12 @@ impl VM {
             print!("          ");
             for value in self.stack.iter() {
                 print!("[ ");
-                print_value(value);
+                print_value(value, &self.strings);
                 print!(" ]");
             }
             print!("\n");
 
-            disassemble_instruction(&self.chunk, self.instruction_pointer);
+            disassemble_instruction(&self.chunk, self.instruction_pointer, &self.strings);
 
             let op_code = match self.read_op_code() {
                 Some(x) => x,
@@ -201,7 +201,7 @@ impl VM {
 
                 OpCode::Print => {
                     let val = self.pop();
-                    println!("{val}")
+                    print_value(&val, &self.strings)
                 }
 
                 OpCode::DefineGlobal => {

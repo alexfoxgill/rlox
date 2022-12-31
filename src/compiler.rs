@@ -76,7 +76,7 @@ impl<'c> Parser<'c> {
         self.emit_return();
 
         if !self.had_error {
-            disassemble_chunk(self.chunk, "code")
+            disassemble_chunk(self.chunk, "code", self.strings)
         }
     }
 
