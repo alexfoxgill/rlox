@@ -12,16 +12,13 @@ use crate::{
 };
 
 pub fn interpret(source: &str) -> InterpretResult {
-    let mut chunk = Chunk::new();
-    let mut strings = StringInterner::with_capacity(16);
-
-    if !compile(Rc::from(source), &mut chunk, &mut strings) {
+    if let Some(mut vm) = compile(Rc::from(source)) {
+        let res = vm.run();
+        res
+    } else {
         return InterpretResult::CompileError;
     }
 
-    let mut vm = VM::new(chunk, strings);
-    let res = vm.run();
-    res
 }
 
 pub struct VM {

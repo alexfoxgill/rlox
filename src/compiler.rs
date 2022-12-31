@@ -5,21 +5,18 @@ use crate::{
     debug::disassemble_chunk,
     scanner::{Scanner, Token, TokenType},
     string_intern::StringInterner,
-    value::{Object, Value},
+    value::{Object, Value}, vm::VM,
 };
 
-pub fn compile(source: Rc<str>, chunk: &mut Chunk, strings: &mut StringInterner) -> bool {
+pub fn compile(source: Rc<str>) -> Option<VM> {
     let scanner = Scanner::init(source);
-
-    let mut parser = Parser::new(scanner, chunk, strings);
-
-    parser.compile()
+    Parser::new(scanner).compile()
 }
 
-struct Parser<'c> {
+struct Parser {
     scanner: Scanner,
-    chunk: &'c mut Chunk,
-    strings: &'c mut StringInterner,
+    chunk: Chunk,
+    strings: StringInterner,
     locals: Vec<Local>,
     scope_depth: usize,
     current: Option<Token>,
@@ -45,12 +42,12 @@ enum LocalDepth {
     Initialized(usize)
 }
 
-impl<'c> Parser<'c> {
-    fn new(scanner: Scanner, chunk: &'c mut Chunk, strings: &'c mut StringInterner) -> Parser<'c> {
+impl Parser {
+    fn new(scanner: Scanner) -> Parser {
         Parser {
             scanner,
-            chunk,
-            strings,
+            chunk: Chunk::new(),
+            strings: StringInterner::with_capacity(16),
             locals: Vec::new(),
             scope_depth: 0,
             current: None,
@@ -60,7 +57,7 @@ impl<'c> Parser<'c> {
         }
     }
 
-    fn compile(&mut self) -> bool {
+    fn compile(mut self) -> Option<VM> {
         self.advance();
 
         while !self.match_token(TokenType::EOF) {
@@ -69,14 +66,18 @@ impl<'c> Parser<'c> {
 
         self.end_compiler();
 
-        !self.had_error
+        if self.had_error {
+            None
+        } else {
+            Some(VM::new(self.chunk, self.strings))
+        }
     }
 
     fn end_compiler(&mut self) {
         self.emit_return();
 
         if !self.had_error {
-            disassemble_chunk(self.chunk, "code", self.strings)
+            disassemble_chunk(&self.chunk, "code", &self.strings)
         }
     }
 
