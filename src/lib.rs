@@ -13,7 +13,8 @@ mod tests {
 
     #[test]
     fn recursion_and_natives() {
-        interpret(r#"
+        interpret(
+            r#"
             fun fib(n) {
                 if (n < 2) return n;
                 return fib(n - 2) + fib(n - 1);
@@ -22,19 +23,23 @@ mod tests {
             var start = clock();
             print fib(26);
             print clock() - start;
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn natives() {
-        interpret(r#"
+        interpret(
+            r#"
             print clock();
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn higher_order_fuction() {
-        interpret(r#"
+        interpret(
+            r#"
             fun foo(text) {
                 return text + text;
             }
@@ -44,23 +49,27 @@ mod tests {
             }
 
             print call(foo, "blah");
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn function_return() {
-        interpret(r#"
+        interpret(
+            r#"
             fun foo() {
                 return "blah";
             }
 
             print foo();
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn nested_function_calls() {
-        interpret(r#"
+        interpret(
+            r#"
             fun bar(a) {
                 print a;
             }
@@ -70,76 +79,90 @@ mod tests {
             }
 
             foo("blah");
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn call_function_with_args() {
-        interpret(r#"
+        interpret(
+            r#"
             fun doSomething(text) {
                 print text;
             }
 
             doSomething("blah");
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn call_function() {
-        interpret(r#"
+        interpret(
+            r#"
             fun doSomething() {
                 print "blah";
             }
 
             doSomething();
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn print_function_name() {
-        interpret(r#"
+        interpret(
+            r#"
             fun doSomething() {
                 print "blah";
             }
 
             print doSomething;
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn for_loop() {
-        interpret(r#"
+        interpret(
+            r#"
             for (var x = 50; x < 51; x = x + 1) {
                 print x;
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn while_loop() {
-        interpret(r#"
+        interpret(
+            r#"
             var x = 1;
             while (x < 2) {
                 print x;
                 x = x + 1;
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn if_condition() {
-        interpret(r#"
+        interpret(
+            r#"
             var x = 1;
             if (x < 5) {
                 print x;
                 x = x + 1;
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn or() {
-        interpret(r#"
+        interpret(
+            r#"
             if (true or true) {
                 print "a";
             }
@@ -152,12 +175,14 @@ mod tests {
             if (false or false) {
                 print "d";
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn and() {
-        interpret(r#"
+        interpret(
+            r#"
             if (true and true) {
                 print "a";
             }
@@ -170,23 +195,27 @@ mod tests {
             if (false and false) {
                 print "d";
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn if_else() {
-        interpret(r#"
+        interpret(
+            r#"
             if (false) {
                 print "a";
             } else {
                 print "b";
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn if_then() {
-        interpret(r#"
+        interpret(
+            r#"
             if (true) {
                 print "a";
             }
@@ -194,55 +223,65 @@ mod tests {
             if (false) {
                 print "b";
             }
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn begin_end_scope_with_override() {
-        interpret(r#"
+        interpret(
+            r#"
             var a = 99;
             {
                  a = 50;
             }
             print a;
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn begin_end_scope_with_same_var() {
-        interpret(r#"
+        interpret(
+            r#"
             var a = 99;
             {
                 var a = 50;
             }
             print a;
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn begin_end_scope_with_var() {
-        interpret(r#"
+        interpret(
+            r#"
             var a = 99;
             {
                 var b = 50;
             }
             print a;
-        "#);
+        "#,
+        );
     }
 
     #[test]
     fn begin_end_scope() {
-        interpret(r#"
+        interpret(
+            r#"
             var a = 99;
             {
             }
             print a;
-        "#);
+        "#,
+        );
     }
-    
+
     #[test]
     fn scopes_and_locals() {
-        interpret(r#"
+        interpret(
+            r#"
             var a = 1;
             {
                 var a = 2;
@@ -253,7 +292,8 @@ mod tests {
                 print a;
             }
             print a;
-        "#);
+        "#,
+        );
     }
 
     #[test]

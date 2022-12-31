@@ -3,9 +3,11 @@ use std::rc::Rc;
 use crate::{
     chunk::{Chunk, OpCode},
     debug::disassemble_chunk,
+    rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    string_intern::{StringInterner},
-    value::{Object, Value, Function, FunctionType}, vm::{VM, CallFrame}, rc_slice::RcSlice,
+    string_intern::StringInterner,
+    value::{Function, FunctionType, Object, Value},
+    vm::VM,
 };
 
 pub fn compile(source: Rc<str>) -> Option<VM> {
@@ -17,9 +19,9 @@ struct Compiler {
     enclosing: Option<Box<Compiler>>,
     function: usize,
     function_type: FunctionType,
-    
+
     locals: Vec<Local>,
-    scope_depth: usize
+    scope_depth: usize,
 }
 
 struct Parser {
@@ -36,7 +38,7 @@ struct Parser {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Local {
     name: Token,
-    depth: LocalDepth
+    depth: LocalDepth,
 }
 impl Local {
     fn initialize(&mut self, depth: usize) {
@@ -47,7 +49,7 @@ impl Local {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
 enum LocalDepth {
     Uninitialized,
-    Initialized(usize)
+    Initialized(usize),
 }
 
 impl Parser {
@@ -96,19 +98,17 @@ impl Parser {
             enclosing: None,
             function: match function_type {
                 FunctionType::Script => 0,
-                FunctionType::Function => self.new_function(self.previous().slice.as_str())
+                FunctionType::Function => self.new_function(self.previous().slice.as_str()),
             },
             function_type,
-            locals: vec![
-                Local {
-                    name: Token {
-                        typ: TokenType::Fun,
-                        line: 0,
-                        slice: RcSlice::from_string("")
-                    },
-                    depth: LocalDepth::Initialized(0)
-                }
-            ],
+            locals: vec![Local {
+                name: Token {
+                    typ: TokenType::Fun,
+                    line: 0,
+                    slice: RcSlice::from_string(""),
+                },
+                depth: LocalDepth::Initialized(0),
+            }],
             scope_depth: 0,
         };
 
@@ -143,7 +143,7 @@ impl Parser {
         let f_id = self.compiler.function;
         &mut self.functions[f_id].chunk
     }
-    
+
     fn advance(&mut self) {
         self.previous = std::mem::take(&mut self.current);
 
@@ -343,7 +343,7 @@ impl Parser {
         self.consume(TokenType::LeftParen, "Expect '(' after 'while'");
         self.expression();
         self.consume(TokenType::RightParen, "Expect ')' after condition");
-        
+
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse);
         self.emit_op_code(OpCode::Pop);
         self.statement();
@@ -364,7 +364,7 @@ impl Parser {
             } else {
                 self.expression_statement();
             }
-        } 
+        }
 
         let mut loop_start = self.chunk().code.len();
         let mut exit_jump = None;
@@ -426,7 +426,11 @@ impl Parser {
 
         let name = self.previous();
 
-        let existing = self.compiler.locals.iter().rev()
+        let existing = self
+            .compiler
+            .locals
+            .iter()
+            .rev()
             .take_while(|local| match local.depth {
                 LocalDepth::Uninitialized => false,
                 LocalDepth::Initialized(d) => d >= self.compiler.scope_depth,
@@ -447,7 +451,7 @@ impl Parser {
         }
         self.compiler.locals.push(Local {
             name,
-            depth: LocalDepth::Uninitialized
+            depth: LocalDepth::Uninitialized,
         })
     }
 
@@ -481,7 +485,11 @@ impl Parser {
     }
 
     fn end_scope(&mut self) {
-        let to_pop = self.compiler.locals.iter().rev()
+        let to_pop = self
+            .compiler
+            .locals
+            .iter()
+            .rev()
             .take_while(|local| match local.depth {
                 LocalDepth::Uninitialized => true,
                 LocalDepth::Initialized(d) => d >= self.compiler.scope_depth,
@@ -622,7 +630,8 @@ impl Parser {
     }
 
     fn named_variable(&mut self, name: Token, can_assign: bool) {
-        let (arg, get, set) = self.resolve_local(&name)
+        let (arg, get, set) = self
+            .resolve_local(&name)
             .map(|arg| (arg, OpCode::GetLocal, OpCode::SetLocal))
             .unwrap_or_else(|| {
                 let arg = self.identifier_constant(name);
@@ -638,7 +647,12 @@ impl Parser {
     }
 
     fn resolve_local(&mut self, name: &Token) -> Option<u8> {
-        let (i, depth) = self.compiler.locals.iter().enumerate().rev()
+        let (i, depth) = self
+            .compiler
+            .locals
+            .iter()
+            .enumerate()
+            .rev()
             .find_map(|(i, local)| {
                 if local.name.string_eq(name) {
                     Some((i as u8, local.depth))
@@ -813,7 +827,11 @@ impl Parser {
     fn new_function(&mut self, name: &str) -> usize {
         let id = self.functions.len();
         let (name, _) = self.strings.intern(name);
-        self.functions.push(Function { arity: 0, chunk: Chunk::new(), name });
+        self.functions.push(Function {
+            arity: 0,
+            chunk: Chunk::new(),
+            name,
+        });
         id
     }
 

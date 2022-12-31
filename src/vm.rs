@@ -1,6 +1,7 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    rc::Rc, time::{SystemTime, UNIX_EPOCH},
+    rc::Rc,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use crate::{
@@ -8,7 +9,7 @@ use crate::{
     compiler::compile,
     debug::{disassemble_instruction, print_value},
     string_intern::{StrId, StringInterner},
-    value::{Object, Value, Function, NativeFunction},
+    value::{Function, NativeFunction, Object, Value},
 };
 
 pub fn interpret(source: &str) -> InterpretResult {
@@ -17,7 +18,6 @@ pub fn interpret(source: &str) -> InterpretResult {
     } else {
         return InterpretResult::CompileError;
     }
-
 }
 
 pub struct VM {
@@ -37,10 +37,11 @@ impl VM {
             strings,
             functions,
             globals: HashMap::new(),
-            natives: Vec::new()
+            natives: Vec::new(),
         };
         vm.define_global("clock", move |_args| {
-            let t = SystemTime::now().duration_since(UNIX_EPOCH)
+            let t = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
                 .as_secs();
             Value::Number(t as f64)
@@ -95,8 +96,14 @@ impl VM {
                     print!(" ]");
                 }
                 print!("\n");
-    
-                disassemble_instruction(&self.chunk(), self.frame().instruction_pointer, &self.strings, &self.functions, &self.natives);
+
+                disassemble_instruction(
+                    &self.chunk(),
+                    self.frame().instruction_pointer,
+                    &self.strings,
+                    &self.functions,
+                    &self.natives,
+                );
             }
 
             let op_code = match self.read_op_code() {
@@ -110,7 +117,7 @@ impl VM {
                     let frame = self.frames.pop().unwrap();
                     if self.frames.is_empty() {
                         self.pop();
-                        return InterpretResult::OK
+                        return InterpretResult::OK;
                     }
 
                     self.stack.truncate(frame.slot_start);
@@ -283,7 +290,7 @@ impl VM {
                 OpCode::Call => {
                     let arg_count = self.read_byte();
                     if !self.call_value(self.peek(arg_count as usize), arg_count) {
-                        return InterpretResult::RuntimeError
+                        return InterpretResult::RuntimeError;
                     }
                 }
             }
@@ -366,9 +373,10 @@ impl VM {
         for frame in self.frames.iter().rev() {
             let function = &self.functions[frame.function];
             let name = self.strings.lookup(function.name);
-            eprintln!("[line {} in {}]",
-                function.chunk.lines[frame.instruction_pointer],
-                name);
+            eprintln!(
+                "[line {} in {}]",
+                function.chunk.lines[frame.instruction_pointer], name
+            );
         }
 
         self.reset_stack();
@@ -377,8 +385,10 @@ impl VM {
     fn define_global<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
         let idx = self.natives.len();
         let (name, _) = self.strings.intern(name);
-        self.natives.push(NativeFunction::new(name, Box::new(function)));
-        self.globals.insert(name, Value::Object(Rc::new(Object::NativeFunction(idx))));
+        self.natives
+            .push(NativeFunction::new(name, Box::new(function)));
+        self.globals
+            .insert(name, Value::Object(Rc::new(Object::NativeFunction(idx))));
     }
 }
 
@@ -400,5 +410,5 @@ fn is_falsey(value: Value) -> bool {
 pub struct CallFrame {
     pub function: usize,
     pub instruction_pointer: usize,
-    pub slot_start: usize
+    pub slot_start: usize,
 }

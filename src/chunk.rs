@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::value::{Value};
+use crate::value::Value;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -76,7 +76,7 @@ impl TryFrom<u8> for OpCode {
 
             x if x == Loop as u8 => Loop,
             x if x == Call as u8 => Call,
-            
+
             _ => return Err("Unknown opcode".into()),
         })
     }
