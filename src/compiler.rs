@@ -5,7 +5,7 @@ use crate::{
     debug::disassemble_chunk,
     scanner::{Scanner, Token, TokenType},
     string_intern::{StringInterner},
-    value::{Object, Value, Function, FunctionType}, vm::{VM, CallFrame},
+    value::{Object, Value, Function, FunctionType}, vm::{VM, CallFrame}, rc_slice::RcSlice,
 };
 
 pub fn compile(source: Rc<str>) -> Option<VM> {
@@ -14,6 +14,7 @@ pub fn compile(source: Rc<str>) -> Option<VM> {
 }
 
 struct Compiler {
+    enclosing: Option<Box<Compiler>>,
     function: usize,
     function_type: FunctionType,
     
@@ -56,6 +57,7 @@ impl Parser {
             strings: StringInterner::with_capacity(16),
             functions: Vec::new(),
             compiler: Compiler {
+                enclosing: None,
                 function: 0,
                 function_type: FunctionType::Script,
                 locals: Vec::new(),
@@ -89,11 +91,38 @@ impl Parser {
                 instruction_pointer: 0,
                 slot_start: 1
             });
+            vm.call(0, 0);
             Some(vm)
         }
     }
 
-    fn end_compiler(&mut self) {
+    fn init_compiler(&mut self, function_type: FunctionType) {
+        let compiler = Compiler {
+            enclosing: None,
+            function: match function_type {
+                FunctionType::Script => 0,
+                FunctionType::Function => self.new_function(self.previous().slice.as_str())
+            },
+            function_type,
+            locals: vec![
+                Local {
+                    name: Token {
+                        typ: TokenType::Fun,
+                        line: 0,
+                        slice: RcSlice::from_string("")
+                    },
+                    depth: LocalDepth::Initialized(0)
+                }
+            ],
+            scope_depth: 0,
+        };
+
+        let enclosing = std::mem::replace(&mut self.compiler, compiler);
+
+        self.compiler.enclosing = Some(Box::new(enclosing));
+    }
+
+    fn end_compiler(&mut self) -> usize {
         self.emit_return();
 
         let f_id = self.compiler.function;
@@ -102,24 +131,22 @@ impl Parser {
             let name = self.strings.lookup(f.name);
             disassemble_chunk(&f.chunk, name, &self.strings, &self.functions)
         }
-    }
 
-    fn function(&self) -> &Function {
-        let f_id = self.compiler.function;
-        &self.functions[f_id]
-    }
+        if let Some(enclosing) = self.compiler.enclosing.take() {
+            self.compiler = *enclosing;
+        }
 
-    fn function_mut(&mut self) -> &mut Function {
-        let f_id = self.compiler.function;
-        &mut self.functions[f_id]
+        f_id
     }
 
     fn chunk(&self) -> &Chunk {
-        &self.function().chunk
+        let f_id = self.compiler.function;
+        &self.functions[f_id].chunk
     }
 
     fn chunk_mut(&mut self) -> &mut Chunk {
-        &mut self.function_mut().chunk
+        let f_id = self.compiler.function;
+        &mut self.functions[f_id].chunk
     }
     
     fn advance(&mut self) {
@@ -152,7 +179,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) {
-        if self.match_token(TokenType::Var) {
+        if self.match_token(TokenType::Fun) {
+            self.fun_declaration();
+        } else if self.match_token(TokenType::Var) {
             self.var_declaration();
         } else {
             self.statement();
@@ -161,6 +190,83 @@ impl Parser {
         if self.panic_mode {
             self.synchronize();
         }
+    }
+
+    fn fun_declaration(&mut self) {
+        let global = self.parse_variable("Expect function name");
+
+        self.mark_initialized();
+
+        self.function(FunctionType::Function);
+
+        self.define_variable(global);
+    }
+
+    fn mark_initialized(&mut self) {
+        if self.compiler.scope_depth == 0 {
+            return;
+        }
+
+        if let Some(x) = self.compiler.locals.last_mut() {
+            x.initialize(self.compiler.scope_depth)
+        }
+    }
+
+    fn function(&mut self, function_type: FunctionType) {
+        self.init_compiler(function_type);
+
+        self.begin_scope();
+
+        self.consume(TokenType::LeftParen, "Expect '(' after function name");
+        if !self.check(TokenType::RightParen) {
+            let mut arity = 0;
+            loop {
+                arity += 1;
+                if arity > 255 {
+                    self.error_at_current("Can't have more than 255 parameters");
+                }
+                let constant = self.parse_variable("Expect parameter name");
+                self.define_variable(constant);
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+            self.functions[self.compiler.function].arity = arity;
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after parameters");
+        self.consume(TokenType::LeftBrace, "Expect '{' before function body");
+
+        self.block();
+
+        let f = self.end_compiler();
+
+        let constant = self.make_constant(Value::Object(Rc::new(Object::Function(f))));
+        self.emit_bytes(OpCode::Constant as u8, constant)
+    }
+
+    fn call(&mut self) {
+        let arg_count = self.argument_list();
+        self.emit_bytes(OpCode::Call as u8, arg_count)
+    }
+
+    fn argument_list(&mut self) -> u8 {
+        let mut arg_count = 0;
+        if !self.check(TokenType::RightParen) {
+            loop {
+                self.expression();
+                if arg_count == u8::MAX {
+                    self.error("Can't have more than 255 arguments");
+                }
+                arg_count += 1;
+
+                if !self.match_token(TokenType::Comma) {
+                    break;
+                }
+            }
+        }
+        self.consume(TokenType::RightParen, "Expect ')' after arguments");
+        arg_count
     }
 
     fn var_declaration(&mut self) {
@@ -185,6 +291,8 @@ impl Parser {
             self.print_statement();
         } else if self.match_token(TokenType::If) {
             self.if_statement();
+        } else if self.match_token(TokenType::Return) {
+            self.return_statement();
         } else if self.match_token(TokenType::While) {
             self.while_statement();
         } else if self.match_token(TokenType::For) {
@@ -195,6 +303,20 @@ impl Parser {
             self.end_scope();
         } else {
             self.expression_statement();
+        }
+    }
+
+    fn return_statement(&mut self) {
+        if self.compiler.function_type == FunctionType::Script {
+            self.error("Can't return from top-level code")
+        }
+
+        if self.match_token(TokenType::SemiColon) {
+            self.emit_return();
+        } else {
+            self.expression();
+            self.consume(TokenType::SemiColon, "Expect ':' after return value");
+            self.emit_op_code(OpCode::Return);
         }
     }
 
@@ -285,13 +407,10 @@ impl Parser {
 
     fn define_variable(&mut self, addr: u8) {
         if self.compiler.scope_depth > 0 {
-            if let Some(x) = self.compiler.locals.last_mut() {
-                x.initialize(self.compiler.scope_depth)
-            }
+            self.mark_initialized();
         } else {
             self.emit_bytes(OpCode::DefineGlobal as u8, addr)
         }
-
     }
 
     fn parse_variable(&mut self, error: &str) -> u8 {
@@ -429,7 +548,9 @@ impl Parser {
         use Precedence::*;
         use TokenType::*;
         match op_type {
-            LeftParen => ParseRule::new().prefix(|p, _| p.grouping()),
+            LeftParen => ParseRule::prec(Precedence::Call)
+                .prefix(|p, _| p.grouping())
+                .infix(|p| p.call()),
             RightParen => ParseRule::new(),
             LeftBrace => ParseRule::new(),
             RightBrace => ParseRule::new(),
@@ -642,7 +763,8 @@ impl Parser {
     }
 
     fn emit_return(&mut self) {
-        self.emit_op_code(OpCode::Return)
+        self.emit_op_code(OpCode::Nil);
+        self.emit_op_code(OpCode::Return);
     }
 
     fn emit_op_code(&mut self, op_code: OpCode) {
@@ -693,11 +815,11 @@ impl Parser {
         self.previous.as_ref().unwrap().clone()
     }
 
-    fn new_function(&mut self, name: &str) -> Value {
+    fn new_function(&mut self, name: &str) -> usize {
         let id = self.functions.len();
         let (name, _) = self.strings.intern(name);
         self.functions.push(Function { arity: 0, chunk: Chunk::new(), name });
-        Value::Object(Rc::new(Object::Function(id)))
+        id
     }
 
     fn synchronize(&mut self) {

@@ -35,6 +35,15 @@ impl Value {
         }
         None
     }
+
+    pub fn as_function(&self) -> Option<usize> {
+        if let Value::Object(o) = self {
+            if let Object::Function(id) = o.as_ref() {
+                return Some(*id)
+            }
+        }
+        None
+    }
 }
 
 #[derive(PartialEq, Clone)]

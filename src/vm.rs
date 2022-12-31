@@ -94,7 +94,17 @@ impl VM {
             };
 
             match op_code {
-                OpCode::Return => return InterpretResult::OK,
+                OpCode::Return => {
+                    let result = self.pop();
+                    let frame = self.frames.pop().unwrap();
+                    if self.frames.is_empty() {
+                        self.pop();
+                        return InterpretResult::OK
+                    }
+
+                    self.stack.truncate(frame.slot_start);
+                    self.push(result);
+                }
 
                 OpCode::Pop => {
                     self.pop();
@@ -257,8 +267,44 @@ impl VM {
                     let offset = self.read_short();
                     self.frame_mut().instruction_pointer -= offset;
                 }
+
+                OpCode::Call => {
+                    let arg_count = self.read_byte();
+                    if !self.call_value(self.peek(arg_count as usize), arg_count) {
+                        return InterpretResult::RuntimeError
+                    }
+                }
             }
         }
+    }
+
+    fn call_value(&mut self, value: Value, arg_count: u8) -> bool {
+        if let Some(f_id) = value.as_function() {
+            self.call(f_id, arg_count as usize)
+        } else {
+            self.runtime_error("Can only call functions and classes");
+            false
+        }
+    }
+
+    pub fn call(&mut self, f_id: usize, arg_count: usize) -> bool {
+        let arity = self.functions[f_id].arity;
+        if arg_count != arity {
+            self.runtime_error(&format!("Expected {arity} arguments but got {arg_count}"));
+            return false;
+        }
+
+        if self.frames.len() == 64 {
+            self.runtime_error("Stack overflow");
+            return false;
+        }
+
+        self.frames.push(CallFrame {
+            function: f_id,
+            instruction_pointer: 0,
+            slot_start: self.stack.len() - arg_count - 1,
+        });
+        true
     }
 
     fn frame(&self) -> &CallFrame {
@@ -296,6 +342,15 @@ impl VM {
         let ins = self.chunk().code[self.frame().instruction_pointer - 1];
         let line = self.chunk().lines[ins as usize];
         eprintln!("[line {line}] in script");
+
+        for frame in self.frames.iter().rev() {
+            let function = &self.functions[frame.function];
+            let name = self.strings.lookup(function.name);
+            eprintln!("[line {} in {}]",
+                function.chunk.lines[frame.instruction_pointer],
+                name);
+        }
+
         self.reset_stack();
     }
 }

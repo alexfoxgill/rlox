@@ -34,6 +34,7 @@ pub enum OpCode {
     JumpIfFalse,
     Jump,
     Loop,
+    Call,
 }
 
 impl TryFrom<u8> for OpCode {
@@ -74,6 +75,7 @@ impl TryFrom<u8> for OpCode {
             x if x == Jump as u8 => Jump,
 
             x if x == Loop as u8 => Loop,
+            x if x == Call as u8 => Call,
             
             _ => return Err("Unknown opcode".into()),
         })

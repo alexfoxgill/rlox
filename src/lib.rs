@@ -12,6 +12,80 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn higher_order_fuction() {
+        interpret(r#"
+            fun foo(text) {
+                return text + text;
+            }
+
+            fun call(fn, arg) {
+                return fn(arg);
+            }
+
+            print call(foo, "blah");
+        "#);
+    }
+
+    #[test]
+    fn function_return() {
+        interpret(r#"
+            fun foo() {
+                return "blah";
+            }
+
+            print foo();
+        "#);
+    }
+
+    #[test]
+    fn nested_function_calls() {
+        interpret(r#"
+            fun bar(a) {
+                print a;
+            }
+
+            fun foo(b) {
+                bar(b);
+            }
+
+            foo("blah");
+        "#);
+    }
+
+    #[test]
+    fn call_function_with_args() {
+        interpret(r#"
+            fun doSomething(text) {
+                print text;
+            }
+
+            doSomething("blah");
+        "#);
+    }
+
+    #[test]
+    fn call_function() {
+        interpret(r#"
+            fun doSomething() {
+                print "blah";
+            }
+
+            doSomething();
+        "#);
+    }
+
+    #[test]
+    fn print_function_name() {
+        interpret(r#"
+            fun doSomething() {
+                print "blah";
+            }
+
+            print doSomething;
+        "#);
+    }
+
+    #[test]
     fn for_loop() {
         interpret(r#"
             for (var x = 50; x < 51; x = x + 1) {
