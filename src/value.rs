@@ -21,25 +21,19 @@ impl Value {
     pub fn as_string(&self) -> Option<&'static str> {
         if let Value::Object(o) = self {
             if let Object::String(s) = o.as_ref() {
-                Some(s)
-            } else {
-                None
+                return Some(s)
             }
-        } else {
-            None
         }
+        None
     }
 
     pub fn as_string_id(&self) -> Option<StrId> {
         if let Value::Object(o) = self {
             if let Object::StringId(id) = o.as_ref() {
-                Some(*id)
-            } else {
-                None
+                return Some(*id)
             }
-        } else {
-            None
         }
+        None
     }
 }
 
