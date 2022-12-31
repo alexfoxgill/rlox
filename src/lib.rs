@@ -12,6 +12,20 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn recursion_and_natives() {
+        interpret(r#"
+            fun fib(n) {
+                if (n < 2) return n;
+                return fib(n - 2) + fib(n - 1);
+            }
+            
+            var start = clock();
+            print fib(26);
+            print clock() - start;
+        "#);
+    }
+
+    #[test]
     fn natives() {
         interpret(r#"
             print clock();

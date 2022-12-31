@@ -87,7 +87,7 @@ impl VM {
 
     pub fn run(&mut self) -> InterpretResult {
         loop {
-            if true {
+            if false {
                 print!("          ");
                 for value in self.stack.iter() {
                     print!("[ ");
@@ -212,7 +212,8 @@ impl VM {
 
                 OpCode::Print => {
                     let val = self.pop();
-                    print_value(&val, &self.strings, &self.functions, &self.natives)
+                    print_value(&val, &self.strings, &self.functions, &self.natives);
+                    println!("");
                 }
 
                 OpCode::DefineGlobal => {
