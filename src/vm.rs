@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    rc::Rc,
+    rc::Rc, time::{SystemTime, UNIX_EPOCH},
 };
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
     compiler::compile,
     debug::{disassemble_instruction, print_value},
     string_intern::{StrId, StringInterner},
-    value::{Object, Value, Function},
+    value::{Object, Value, Function, NativeFunction},
 };
 
 pub fn interpret(source: &str) -> InterpretResult {
@@ -26,17 +26,26 @@ pub struct VM {
     pub strings: StringInterner,
     pub functions: Vec<Function>,
     pub globals: HashMap<StrId, Value>,
+    pub natives: Vec<NativeFunction>,
 }
 
 impl VM {
     pub fn new(strings: StringInterner, functions: Vec<Function>) -> Self {
-        Self {
+        let mut vm = Self {
             frames: Vec::new(),
             stack: Vec::new(),
             strings,
             functions,
             globals: HashMap::new(),
-        }
+            natives: Vec::new()
+        };
+        vm.define_global("clock", move |_args| {
+            let t = SystemTime::now().duration_since(UNIX_EPOCH)
+                .expect("Time went backwards")
+                .as_secs();
+            Value::Number(t as f64)
+        });
+        vm
     }
 
     pub fn read_byte(&mut self) -> u8 {
@@ -78,15 +87,17 @@ impl VM {
 
     pub fn run(&mut self) -> InterpretResult {
         loop {
-            print!("          ");
-            for value in self.stack.iter() {
-                print!("[ ");
-                print_value(value, &self.strings, &self.functions);
-                print!(" ]");
+            if true {
+                print!("          ");
+                for value in self.stack.iter() {
+                    print!("[ ");
+                    print_value(value, &self.strings, &self.functions, &self.natives);
+                    print!(" ]");
+                }
+                print!("\n");
+    
+                disassemble_instruction(&self.chunk(), self.frame().instruction_pointer, &self.strings, &self.functions, &self.natives);
             }
-            print!("\n");
-
-            disassemble_instruction(&self.chunk(), self.frame().instruction_pointer, &self.strings, &self.functions);
 
             let op_code = match self.read_op_code() {
                 Some(x) => x,
@@ -201,7 +212,7 @@ impl VM {
 
                 OpCode::Print => {
                     let val = self.pop();
-                    print_value(&val, &self.strings, &self.functions)
+                    print_value(&val, &self.strings, &self.functions, &self.natives)
                 }
 
                 OpCode::DefineGlobal => {
@@ -281,6 +292,14 @@ impl VM {
     fn call_value(&mut self, value: Value, arg_count: u8) -> bool {
         if let Some(f_id) = value.as_function() {
             self.call(f_id, arg_count as usize)
+        } else if let Some(f_id) = value.as_native_function() {
+            let native = &self.natives[f_id];
+            let init_stack = self.stack.len() - arg_count as usize;
+            let args = &self.stack[init_stack..];
+            let res = (native.callable)(args);
+            self.stack.truncate(init_stack);
+            self.push(res);
+            true
         } else {
             self.runtime_error("Can only call functions and classes");
             false
@@ -352,6 +371,13 @@ impl VM {
         }
 
         self.reset_stack();
+    }
+
+    fn define_global<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
+        let idx = self.natives.len();
+        let (name, _) = self.strings.intern(name);
+        self.natives.push(NativeFunction::new(name, Box::new(function)));
+        self.globals.insert(name, Value::Object(Rc::new(Object::NativeFunction(idx))));
     }
 }
 

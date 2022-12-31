@@ -86,11 +86,6 @@ impl Parser {
         } else {
             let mut vm = VM::new(self.strings, self.functions);
             vm.push(Value::Object(Rc::new(Object::Function(0))));
-            vm.frames.push(CallFrame {
-                function: 0,
-                instruction_pointer: 0,
-                slot_start: 1
-            });
             vm.call(0, 0);
             Some(vm)
         }
@@ -129,7 +124,7 @@ impl Parser {
         if !self.had_error {
             let f = &self.functions[f_id];
             let name = self.strings.lookup(f.name);
-            disassemble_chunk(&f.chunk, name, &self.strings, &self.functions)
+            disassemble_chunk(&f.chunk, name, &self.strings, &self.functions, &Vec::new())
         }
 
         if let Some(enclosing) = self.compiler.enclosing.take() {

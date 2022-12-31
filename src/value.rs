@@ -44,13 +44,23 @@ impl Value {
         }
         None
     }
+
+    pub fn as_native_function(&self) -> Option<usize> {
+        if let Value::Object(o) = self {
+            if let Object::NativeFunction(id) = o.as_ref() {
+                return Some(*id)
+            }
+        }
+        None
+    }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq)]
 pub enum Object {
     String(&'static str),
     StringId(StrId),
-    Function(usize)
+    Function(usize),
+    NativeFunction(usize)
 }
 
 pub struct Function {
@@ -63,4 +73,13 @@ pub struct Function {
 pub enum FunctionType {
     Script,
     Function
+}
+
+pub struct NativeFunction {
+    pub name: StrId,
+    pub callable: Box<dyn Fn(&[Value]) -> Value>
+}
+
+impl NativeFunction {
+    pub fn new(name: StrId, callable: Box<dyn Fn(&[Value]) -> Value>) -> Self { Self { name, callable } }
 }

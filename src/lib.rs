@@ -12,6 +12,13 @@ mod tests {
     use crate::vm::interpret;
 
     #[test]
+    fn natives() {
+        interpret(r#"
+            print clock();
+        "#);
+    }
+
+    #[test]
     fn higher_order_fuction() {
         interpret(r#"
             fun foo(text) {
