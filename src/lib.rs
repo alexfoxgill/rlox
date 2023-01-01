@@ -28,7 +28,7 @@ mod tests {
         config.print_output.redirect(output.clone());
         crate::vm::interpret(str, config);
         let rc = output.borrow();
-        rc.trim_matches('\n').into()
+        rc.trim_matches('\n').trim_matches('"').into()
     }
 
     #[test]

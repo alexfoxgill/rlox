@@ -89,6 +89,7 @@ impl VM {
 
     pub fn run(&mut self) -> InterpretResult {
         loop {
+            #[cfg(debug_assertions)]
             {
                 let c = self.frame().closure;
                 let f = self.memory.closure(c).function;

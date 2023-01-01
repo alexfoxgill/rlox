@@ -104,6 +104,8 @@ impl Parser {
         self.emit_return();
 
         let f_id = self.compiler.function;
+        
+        #[cfg(debug_assertions)]
         if !self.had_error {
             let f = &self.memory.function(f_id);
             let name = self.memory.get_string(f.name);

@@ -147,11 +147,11 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
             write!(output, "{n}").unwrap();
         }
         Value::String(s) => {
-            write!(output, "{s}").unwrap();
+            write!(output, "\"{s}\"").unwrap();
         }
         Value::StringId(id) => {
             let s = memory.get_string(*id);
-            write!(output, "{s}").unwrap();
+            write!(output, "\"{s}\"").unwrap();
         }
         Value::Function(id) => {
             let f = &memory.function(*id);
