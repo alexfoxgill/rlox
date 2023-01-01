@@ -1,17 +1,8 @@
 use crate::{
     chunk::Chunk,
     string_intern::{StrId, StringInterner},
-    value::{Closure, Function, NativeFunction, Value},
+    value::{Value},
 };
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct FunctionId(pub usize);
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ClosureId(pub usize);
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
-pub struct NativeFunctionId(pub usize);
 
 pub struct Memory {
     strings: StringInterner,
@@ -89,5 +80,35 @@ impl Memory {
         self.natives
             .push(NativeFunction::new(name, Box::new(function)));
         NativeFunctionId(id)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FunctionId(pub usize);
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ClosureId(pub usize);
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct NativeFunctionId(pub usize);
+
+pub struct Function {
+    pub arity: usize,
+    pub chunk: Chunk,
+    pub name: StrId,
+}
+
+pub struct Closure {
+    pub function: FunctionId,
+}
+
+pub struct NativeFunction {
+    pub name: StrId,
+    pub callable: Box<dyn Fn(&[Value]) -> Value>,
+}
+
+impl NativeFunction {
+    pub fn new(name: StrId, callable: Box<dyn Fn(&[Value]) -> Value>) -> Self {
+        Self { name, callable }
     }
 }

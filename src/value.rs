@@ -59,30 +59,3 @@ impl Value {
         }
     }
 }
-
-pub struct Function {
-    pub arity: usize,
-    pub chunk: Chunk,
-    pub name: StrId,
-}
-
-#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
-pub enum FunctionType {
-    Script,
-    Function,
-}
-
-pub struct Closure {
-    pub function: FunctionId,
-}
-
-pub struct NativeFunction {
-    pub name: StrId,
-    pub callable: Box<dyn Fn(&[Value]) -> Value>,
-}
-
-impl NativeFunction {
-    pub fn new(name: StrId, callable: Box<dyn Fn(&[Value]) -> Value>) -> Self {
-        Self { name, callable }
-    }
-}

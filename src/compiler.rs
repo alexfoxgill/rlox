@@ -7,21 +7,13 @@ use crate::{
     memory::{FunctionId, Memory},
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    value::{FunctionType, Value},
+    value::{Value},
     vm::VM,
 };
 
 pub fn compile(source: Rc<str>, config: Config) -> Option<VM> {
     let scanner = Scanner::init(source);
     Parser::new(scanner, config).compile()
-}
-
-struct Compiler {
-    enclosing: Option<Box<Compiler>>,
-    function: FunctionId,
-    function_type: FunctionType,
-    locals: Vec<Local>,
-    scope_depth: usize,
 }
 
 struct Parser {
@@ -33,23 +25,6 @@ struct Parser {
     previous: Option<Token>,
     had_error: bool,
     panic_mode: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-struct Local {
-    name: Token,
-    depth: LocalDepth,
-}
-impl Local {
-    fn initialize(&mut self, depth: usize) {
-        self.depth = LocalDepth::Initialized(depth);
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
-enum LocalDepth {
-    Uninitialized,
-    Initialized(usize),
 }
 
 impl Parser {
@@ -933,4 +908,35 @@ impl ParseRule {
             precedence: self.precedence,
         }
     }
+}
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
+enum FunctionType {
+    Script,
+    Function,
+}
+
+struct Compiler {
+    enclosing: Option<Box<Compiler>>,
+    function: FunctionId,
+    function_type: FunctionType,
+    locals: Vec<Local>,
+    scope_depth: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct Local {
+    name: Token,
+    depth: LocalDepth,
+}
+impl Local {
+    fn initialize(&mut self, depth: usize) {
+        self.depth = LocalDepth::Initialized(depth);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
+enum LocalDepth {
+    Uninitialized,
+    Initialized(usize),
 }
