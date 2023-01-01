@@ -7,7 +7,7 @@ use crate::{
     memory::{FunctionId, Memory},
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    value::{Value},
+    value::Value,
     vm::VM,
 };
 

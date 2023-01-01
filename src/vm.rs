@@ -290,8 +290,8 @@ impl VM {
                 }
 
                 OpCode::Call => {
-                    let arg_count = self.read_byte();
-                    if !self.call_value(self.peek(arg_count as usize), arg_count) {
+                    let arg_count = self.read_byte() as usize;
+                    if !self.call_value(self.peek(arg_count), arg_count) {
                         return InterpretResult::RuntimeError;
                     }
                 }
@@ -313,12 +313,12 @@ impl VM {
         self.memory.new_closure(function)
     }
 
-    fn call_value(&mut self, value: Value, arg_count: u8) -> bool {
+    fn call_value(&mut self, value: Value, arg_count: usize) -> bool {
         if let Some(c_id) = value.as_closure() {
-            self.call(c_id, arg_count as usize)
+            self.call(c_id, arg_count)
         } else if let Some(f_id) = value.as_native_function() {
             let native = &self.memory.native(f_id);
-            let init_stack = self.stack.len() - arg_count as usize;
+            let init_stack = self.stack.len() - arg_count;
             let args = &self.stack[init_stack..];
             let res = (native.callable)(args);
             self.stack.truncate(init_stack);

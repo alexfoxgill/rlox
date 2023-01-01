@@ -1,7 +1,7 @@
 use crate::{
     chunk::Chunk,
     string_intern::{StrId, StringInterner},
-    value::{Value},
+    value::Value,
 };
 
 pub struct Memory {

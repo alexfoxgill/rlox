@@ -1,5 +1,4 @@
 use crate::{
-    chunk::Chunk,
     memory::{ClosureId, FunctionId, NativeFunctionId},
     string_intern::StrId,
 };
