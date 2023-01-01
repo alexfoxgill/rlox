@@ -1,5 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
+    fmt::Write,
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -7,14 +8,15 @@ use std::{
 use crate::{
     chunk::{Chunk, OpCode},
     compiler::compile,
+    config::Config,
     debug::{disassemble_instruction, print_value},
     memory::Memory,
-    string_intern::{StrId, StringInterner},
-    value::{Function, NativeFunction, Object, Value},
+    string_intern::StrId,
+    value::{NativeFunction, Object, Value},
 };
 
-pub fn interpret(source: &str) -> InterpretResult {
-    if let Some(mut vm) = compile(Rc::from(source)) {
+pub fn interpret(source: &str, config: Config) -> InterpretResult {
+    if let Some(mut vm) = compile(Rc::from(source), config) {
         vm.run()
     } else {
         return InterpretResult::CompileError;
@@ -22,6 +24,7 @@ pub fn interpret(source: &str) -> InterpretResult {
 }
 
 pub struct VM {
+    pub config: Config,
     pub frames: Vec<CallFrame>,
     pub stack: Vec<Value>,
     pub globals: HashMap<StrId, Value>,
@@ -29,14 +32,15 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(memory: Memory) -> Self {
+    pub fn new(memory: Memory, config: Config) -> Self {
         let mut vm = Self {
+            config,
             frames: Vec::new(),
             stack: Vec::new(),
             globals: HashMap::new(),
             memory,
         };
-        vm.define_global("clock", move |_args| {
+        vm.define_native("clock", move |_args| {
             let t = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("Time went backwards")
@@ -85,20 +89,22 @@ impl VM {
 
     pub fn run(&mut self) -> InterpretResult {
         loop {
-            if false {
-                print!("          ");
-                for value in self.stack.iter() {
-                    print!("[ ");
-                    print_value(value, &self.memory);
-                    print!(" ]");
-                }
-                print!("\n");
+            {
+                let f = self.frame().function;
+                let ip = self.frame().instruction_pointer;
+                let chunk = &self.memory.functions[f].chunk;
 
-                disassemble_instruction(
-                    &self.chunk(),
-                    self.frame().instruction_pointer,
-                    &self.memory,
-                );
+                let output = &mut self.config.vm_debug;
+
+                write!(output, "          ").unwrap();
+                for value in self.stack.iter() {
+                    write!(output, "[ ").unwrap();
+                    print_value(value, &self.memory, output);
+                    write!(output, " ]").unwrap();
+                }
+                write!(output, "\n").unwrap();
+
+                disassemble_instruction(&chunk, ip, &self.memory, output);
             }
 
             let op_code = match self.read_op_code() {
@@ -214,8 +220,8 @@ impl VM {
 
                 OpCode::Print => {
                     let val = self.pop();
-                    print_value(&val, &self.memory);
-                    println!("");
+                    print_value(&val, &self.memory, &mut self.config.print_output);
+                    write!(&mut self.config.print_output, "\n").unwrap();
                 }
 
                 OpCode::DefineGlobal => {
@@ -359,25 +365,27 @@ impl VM {
     }
 
     fn runtime_error(&mut self, error: &str) {
-        eprintln!("{error}");
+        write!(self.config.vm_error, "{error}").unwrap();
 
         let ins = self.chunk().code[self.frame().instruction_pointer - 1];
         let line = self.chunk().lines[ins as usize];
-        eprintln!("[line {line}] in script");
+        write!(self.config.vm_error, "[line {line}] in script").unwrap();
 
         for frame in self.frames.iter().rev() {
             let function = &self.memory.functions[frame.function];
             let name = self.memory.strings.lookup(function.name);
-            eprintln!(
+            writeln!(
+                self.config.vm_error,
                 "[line {} in {}]",
                 function.chunk.lines[frame.instruction_pointer], name
-            );
+            )
+            .unwrap();
         }
 
         self.reset_stack();
     }
 
-    fn define_global<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
+    fn define_native<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
         let idx = self.memory.natives.len();
         let (name, _) = self.memory.strings.intern(name);
         self.memory

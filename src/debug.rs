@@ -1,26 +1,32 @@
 use crate::{
     chunk::{Chunk, OpCode},
     memory::Memory,
-    string_intern::StringInterner,
-    value::{Function, NativeFunction, Object, Value},
+    value::{Object, Value},
 };
 
-pub fn disassemble_chunk(chunk: &Chunk, name: &str, memory: &Memory) {
-    println!("== {name} ==");
+use std::fmt::Write;
+
+pub fn disassemble_chunk(chunk: &Chunk, name: &str, memory: &Memory, output: &mut impl Write) {
+    writeln!(output, "== {name} ==").unwrap();
 
     let mut offset = 0;
     while offset < chunk.code.len() {
-        offset = disassemble_instruction(chunk, offset, memory);
+        offset = disassemble_instruction(chunk, offset, memory, output);
     }
 }
 
-pub fn disassemble_instruction(chunk: &Chunk, offset: usize, memory: &Memory) -> usize {
-    print!("{offset:0>4} ");
+pub fn disassemble_instruction(
+    chunk: &Chunk,
+    offset: usize,
+    memory: &Memory,
+    output: &mut impl Write,
+) -> usize {
+    write!(output, "{offset:0>4} ").unwrap();
     let line = chunk.lines[offset];
     if offset > 0 && line == chunk.lines[offset - 1] {
-        print!("   | ");
+        write!(output, "   | ").unwrap();
     } else {
-        print!("{line:>4} ");
+        write!(output, "{line:>4} ").unwrap();
     }
 
     let byte = chunk.code[offset];
@@ -28,22 +34,22 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize, memory: &Memory) ->
     let op_code: OpCode = match byte.try_into() {
         Ok(x) => x,
         Err(_) => {
-            print!("Unknown opcode {byte}");
+            write!(output, "Unknown opcode {byte}").unwrap();
             return offset + 1;
         }
     };
 
     match op_code {
-        OpCode::Loop => jump_instruction(op_code, -1, chunk, offset),
+        OpCode::Loop => jump_instruction(op_code, -1, chunk, offset, output),
 
-        OpCode::Jump | OpCode::JumpIfFalse => jump_instruction(op_code, 1, chunk, offset),
+        OpCode::Jump | OpCode::JumpIfFalse => jump_instruction(op_code, 1, chunk, offset, output),
 
         OpCode::Constant | OpCode::DefineGlobal | OpCode::GetGlobal | OpCode::SetGlobal => {
-            constant_instruction(op_code, chunk, offset, memory)
+            constant_instruction(op_code, chunk, offset, memory, output)
         }
 
         OpCode::Call | OpCode::GetLocal | OpCode::SetLocal => {
-            byte_instruction(op_code, chunk, offset)
+            byte_instruction(op_code, chunk, offset, output)
         }
 
         OpCode::Nil
@@ -60,62 +66,87 @@ pub fn disassemble_instruction(chunk: &Chunk, offset: usize, memory: &Memory) ->
         | OpCode::Negate
         | OpCode::Return
         | OpCode::Print
-        | OpCode::Pop => simple_instruction(op_code, offset),
+        | OpCode::Pop => simple_instruction(op_code, offset, output),
     }
 }
 
-fn jump_instruction(op_code: OpCode, sign: i32, chunk: &Chunk, offset: usize) -> usize {
+fn jump_instruction(
+    op_code: OpCode,
+    sign: i32,
+    chunk: &Chunk,
+    offset: usize,
+    output: &mut impl Write,
+) -> usize {
     let b1 = chunk.code[offset + 1] as u16;
     let b2 = chunk.code[offset + 2] as u16;
     let jump = (b1 << 8) | b2;
     let s = format!("{op_code:?}");
     let dest = (offset as i32 + 3) + (sign * jump as i32);
-    println!("{s:<16} {offset:0>4} -> {dest:0>4}");
+    writeln!(output, "{s:<16} {offset:0>4} -> {dest:0>4}").unwrap();
     offset + 3
 }
 
-fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize, memory: &Memory) -> usize {
+fn constant_instruction(
+    op_code: OpCode,
+    chunk: &Chunk,
+    offset: usize,
+    memory: &Memory,
+    output: &mut impl Write,
+) -> usize {
     let constant = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
-    print!("{s:<16} {constant:>4} ");
-    print_value(&chunk.constants[constant as usize], memory);
-    print!("\n");
+    write!(output, "{s:<16} {constant:>4} ").unwrap();
+    print_value(&chunk.constants[constant as usize], memory, output);
+    write!(output, "\n").unwrap();
     offset + 2
 }
 
-fn byte_instruction(op_code: OpCode, chunk: &Chunk, offset: usize) -> usize {
+fn byte_instruction(
+    op_code: OpCode,
+    chunk: &Chunk,
+    offset: usize,
+    output: &mut impl Write,
+) -> usize {
     let slot = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
-    println!("{s:<16} {slot:0>4}");
+    writeln!(output, "{s:<16} {slot:0>4}").unwrap();
     offset + 2
 }
 
-fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
+fn simple_instruction(op_code: OpCode, offset: usize, output: &mut impl Write) -> usize {
     let s = format!("{op_code:?}");
-    println!("{s:<16}");
+    writeln!(output, "{s:<16}").unwrap();
     offset + 1
 }
 
-pub fn print_value(value: &Value, memory: &Memory) {
+pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
     match value {
-        Value::Nil => print!("nil"),
-        Value::Bool(b) => print!("{b}"),
-        Value::Number(n) => print!("{n}"),
+        Value::Nil => {
+            write!(output, "nil").unwrap();
+        }
+        Value::Bool(b) => {
+            write!(output, "{b}").unwrap();
+        }
+        Value::Number(n) => {
+            write!(output, "{n}").unwrap();
+        }
         Value::Object(o) => match o.as_ref() {
-            Object::String(s) => print!("{s}"),
+            Object::String(s) => {
+                write!(output, "{s}").unwrap();
+            }
             Object::StringId(id) => {
                 let s = memory.strings.lookup(*id);
-                print!("{s}")
+                write!(output, "{s}").unwrap();
             }
             Object::Function(id) => {
                 let f = &memory.functions[*id];
                 let s = memory.strings.lookup(f.name);
-                print!("<fn {s}>");
+                write!(output, "<fn {s}>").unwrap();
             }
             Object::NativeFunction(id) => {
                 let f = &memory.natives[*id];
                 let s = memory.strings.lookup(f.name);
-                print!("<native fn {s}>");
+                write!(output, "<native fn {s}>").unwrap();
             }
         },
     }

@@ -1,5 +1,6 @@
 pub mod chunk;
 pub mod compiler;
+pub mod config;
 pub mod debug;
 pub mod memory;
 pub mod rc_slice;
@@ -10,7 +11,12 @@ pub mod vm;
 
 #[cfg(test)]
 mod tests {
-    use crate::vm::interpret;
+    use crate::config::Config;
+
+    fn interpret(str: &str) {
+        let config = Config::default();
+        crate::vm::interpret(str, config);
+    }
 
     #[test]
     fn make_closure() {
@@ -57,7 +63,7 @@ mod tests {
             }
             
             var start = clock();
-            print fib(26);
+            print fib(19);
             print clock() - start;
         "#,
         );

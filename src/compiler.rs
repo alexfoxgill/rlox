@@ -1,19 +1,19 @@
-use std::rc::Rc;
+use std::{fmt::Write, rc::Rc};
 
 use crate::{
     chunk::{Chunk, OpCode},
+    config::Config,
     debug::disassemble_chunk,
     memory::Memory,
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    string_intern::StringInterner,
     value::{Function, FunctionType, Object, Value},
     vm::VM,
 };
 
-pub fn compile(source: Rc<str>) -> Option<VM> {
+pub fn compile(source: Rc<str>, config: Config) -> Option<VM> {
     let scanner = Scanner::init(source);
-    Parser::new(scanner).compile()
+    Parser::new(scanner, config).compile()
 }
 
 struct Compiler {
@@ -26,6 +26,7 @@ struct Compiler {
 }
 
 struct Parser {
+    config: Config,
     scanner: Scanner,
     compiler: Compiler,
     memory: Memory,
@@ -53,8 +54,9 @@ enum LocalDepth {
 }
 
 impl Parser {
-    fn new(scanner: Scanner) -> Parser {
+    fn new(scanner: Scanner, config: Config) -> Parser {
         let mut parser = Parser {
+            config,
             scanner,
             memory: Memory::new(),
             compiler: Compiler {
@@ -85,7 +87,7 @@ impl Parser {
         if self.had_error {
             None
         } else {
-            let mut vm = VM::new(self.memory);
+            let mut vm = VM::new(self.memory, self.config);
             vm.push(Value::Object(Rc::new(Object::Function(0))));
             vm.call(0, 0);
             Some(vm)
@@ -123,7 +125,12 @@ impl Parser {
         if !self.had_error {
             let f = &self.memory.functions[f_id];
             let name = self.memory.strings.lookup(f.name);
-            disassemble_chunk(&f.chunk, name, &self.memory)
+            disassemble_chunk(
+                &f.chunk,
+                name,
+                &self.memory,
+                &mut self.config.compiler_debug,
+            );
         }
 
         if let Some(enclosing) = self.compiler.enclosing.take() {
@@ -802,7 +809,7 @@ impl Parser {
             return;
         }
         self.panic_mode = true;
-        print_error(self.current(), message);
+        print_error(self.current(), message, &mut self.config.compiler_error);
         self.had_error = true;
     }
 
@@ -811,7 +818,7 @@ impl Parser {
             return;
         }
         self.panic_mode = true;
-        print_error(self.previous(), message);
+        print_error(self.previous(), message, &mut self.config.compiler_error);
         self.had_error = true;
     }
 
@@ -855,18 +862,18 @@ impl Parser {
     }
 }
 
-fn print_error(token: Token, message: &str) {
-    eprint!("[line {}] Error", token.line);
+fn print_error(token: Token, message: &str, output: &mut impl Write) {
+    write!(output, "[line {}] Error", token.line).unwrap();
 
     if token.typ == TokenType::EOF {
-        eprint!(" at end");
+        write!(output, " at end").unwrap();
     } else if token.typ == TokenType::Error {
         // ...
     } else {
-        eprint!(" at '{}'", token.slice);
+        write!(output, " at '{}'", token.slice).unwrap();
     }
 
-    eprintln!(": {message}");
+    write!(output, ": {message}").unwrap();
 }
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug, PartialOrd, Ord)]
