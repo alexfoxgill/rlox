@@ -1,7 +1,7 @@
 use crate::{
     chunk::{Chunk, OpCode},
     memory::Memory,
-    value::{Object, Value},
+    value::{Value},
 };
 
 use std::fmt::Write;
@@ -141,30 +141,28 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
         Value::Number(n) => {
             write!(output, "{n}").unwrap();
         }
-        Value::Object(o) => match o.as_ref() {
-            Object::String(s) => {
-                write!(output, "{s}").unwrap();
-            }
-            Object::StringId(id) => {
-                let s = memory.get_string(*id);
-                write!(output, "{s}").unwrap();
-            }
-            Object::Function(id) => {
-                let f = &memory.function(*id);
-                let s = memory.get_string(f.name);
-                write!(output, "<fn {s}>").unwrap();
-            }
-            Object::NativeFunction(id) => {
-                let f = &memory.native(*id);
-                let s = memory.get_string(f.name);
-                write!(output, "<native fn {s}>").unwrap();
-            }
-            Object::Closure(id) => {
-                let c = &memory.closure(*id);
-                let f = &memory.function(c.function);
-                let s = memory.get_string(f.name);
-                write!(output, "<closure {s}>").unwrap();
-            }
-        },
+        Value::String(s) => {
+            write!(output, "{s}").unwrap();
+        }
+        Value::StringId(id) => {
+            let s = memory.get_string(*id);
+            write!(output, "{s}").unwrap();
+        }
+        Value::Function(id) => {
+            let f = &memory.function(*id);
+            let s = memory.get_string(f.name);
+            write!(output, "<fn {s}>").unwrap();
+        }
+        Value::NativeFunction(id) => {
+            let f = &memory.native(*id);
+            let s = memory.get_string(f.name);
+            write!(output, "<native fn {s}>").unwrap();
+        }
+        Value::Closure(id) => {
+            let c = &memory.closure(*id);
+            let f = &memory.function(c.function);
+            let s = memory.get_string(f.name);
+            write!(output, "<closure {s}>").unwrap();
+        }
     }
 }

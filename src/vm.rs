@@ -12,7 +12,7 @@ use crate::{
     debug::{disassemble_instruction, print_value},
     memory::Memory,
     string_intern::StrId,
-    value::{Object, Value, FunctionId, ClosureId},
+    value::{Value, FunctionId, ClosureId},
 };
 
 pub fn interpret(source: &str, config: Config) -> InterpretResult {
@@ -158,7 +158,7 @@ impl VM {
                                 concat.push_str(b);
                                 self.memory.string_intern(&concat)
                             };
-                            self.push(Value::Object(Rc::new(Object::String(concat))));
+                            self.push(Value::String(concat));
                             continue;
                         }
                         _ => (),
@@ -299,7 +299,7 @@ impl VM {
                 OpCode::Closure => {
                     if let Some(function) = self.read_constant().as_function() {
                         let closure = self.new_closure(function);
-                        self.push(Value::Object(Rc::new(Object::Closure(closure))));
+                        self.push(Value::Closure(closure));
                     } else {
                         self.runtime_error("Expected closure");
                         return InterpretResult::RuntimeError;
@@ -408,7 +408,7 @@ impl VM {
         let id = self.memory.new_native(name, function);
         let name = self.memory.string_id(name);
         self.globals
-            .insert(name, Value::Object(Rc::new(Object::NativeFunction(id))));
+            .insert(name, Value::NativeFunction(id));
     }
 }
 
@@ -422,8 +422,7 @@ fn is_falsey(value: Value) -> bool {
     match value {
         Value::Nil => true,
         Value::Bool(b) => !b,
-        Value::Number(_) => false,
-        Value::Object(_) => false,
+        _ => false
     }
 }
 

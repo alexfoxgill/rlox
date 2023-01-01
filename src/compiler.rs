@@ -7,7 +7,7 @@ use crate::{
     memory::Memory,
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    value::{FunctionType, Object, Value, FunctionId},
+    value::{FunctionType, Value, FunctionId},
     vm::VM,
 };
 
@@ -89,7 +89,7 @@ impl Parser {
         } else {
             let mut vm = VM::new(self.memory, self.config);
             let closure = vm.new_closure(FunctionId(0));
-            vm.push(Value::Object(Rc::new(Object::Closure(closure))));
+            vm.push(Value::Closure(closure));
             vm.call(closure, 0);
             Some(vm)
         }
@@ -243,7 +243,7 @@ impl Parser {
 
         let f = self.end_compiler();
 
-        let constant = self.make_constant(Value::Object(Rc::new(Object::Function(f))));
+        let constant = self.make_constant(Value::Function(f));
         self.emit_bytes(OpCode::Closure as u8, constant)
     }
 
@@ -613,14 +613,12 @@ impl Parser {
 
     fn make_string(&mut self, str: String) -> Value {
         let str = self.memory.string_intern(&str);
-        let obj = Rc::new(Object::String(str));
-        Value::Object(obj)
+        Value::String(str)
     }
 
     fn make_string_id(&mut self, str: String) -> Value {
         let id = self.memory.string_id(&str);
-        let obj = Rc::new(Object::StringId(id));
-        Value::Object(obj)
+        Value::StringId(id)
     }
 
     fn literal(&mut self) {

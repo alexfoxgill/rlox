@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use crate::{chunk::Chunk, string_intern::StrId};
 
 #[derive(PartialEq, Clone)]
@@ -7,7 +5,11 @@ pub enum Value {
     Nil,
     Bool(bool),
     Number(f64),
-    Object(Rc<Object>),
+    String(&'static str),
+    StringId(StrId),
+    Function(FunctionId),
+    Closure(ClosureId),
+    NativeFunction(NativeFunctionId),
 }
 
 impl Value {
@@ -19,48 +21,38 @@ impl Value {
     }
 
     pub fn as_string(&self) -> Option<&'static str> {
-        if let Value::Object(o) = self {
-            if let Object::String(s) = o.as_ref() {
-                return Some(s);
-            }
+        match self {
+            Value::String(s) => Some(s),
+            _ => None
         }
-        None
     }
 
     pub fn as_string_id(&self) -> Option<StrId> {
-        if let Value::Object(o) = self {
-            if let Object::StringId(id) = o.as_ref() {
-                return Some(*id);
-            }
+        match self {
+            Value::StringId(id) => Some(*id),
+            _ => None
         }
-        None
     }
 
     pub fn as_function(&self) -> Option<FunctionId> {
-        if let Value::Object(o) = self {
-            if let Object::Function(id) = o.as_ref() {
-                return Some(*id);
-            }
+        match self {
+            Value::Function(id) => Some(*id),
+            _ => None
         }
-        None
     }
 
     pub fn as_native_function(&self) -> Option<NativeFunctionId> {
-        if let Value::Object(o) = self {
-            if let Object::NativeFunction(id) = o.as_ref() {
-                return Some(*id);
-            }
+        match self {
+            Value::NativeFunction(id) => Some(*id),
+            _ => None
         }
-        None
     }
 
     pub fn as_closure(&self) -> Option<ClosureId> {
-        if let Value::Object(o) = self {
-            if let Object::Closure(id) = o.as_ref() {
-                return Some(*id);
-            }
+        match self {
+            Value::Closure(id) => Some(*id),
+            _ => None
         }
-        None
     }
 }
 
@@ -72,15 +64,6 @@ pub struct ClosureId(pub usize);
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct NativeFunctionId(pub usize);
-
-#[derive(PartialEq)]
-pub enum Object {
-    String(&'static str),
-    StringId(StrId),
-    Function(FunctionId),
-    Closure(ClosureId),
-    NativeFunction(NativeFunctionId),
-}
 
 pub struct Function {
     pub arity: usize,
