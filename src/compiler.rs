@@ -225,12 +225,12 @@ impl Parser {
         let f = self.end_compiler();
 
         let constant = self.make_constant(Value::Function(f));
-        self.emit_bytes(OpCode::Closure as u8, constant)
+        self.emit_bytes(OpCode::Closure, constant)
     }
 
     fn call(&mut self) {
         let arg_count = self.argument_list();
-        self.emit_bytes(OpCode::Call as u8, arg_count)
+        self.emit_bytes(OpCode::Call, arg_count)
     }
 
     fn argument_list(&mut self) -> u8 {
@@ -433,14 +433,10 @@ impl Parser {
     }
 
     fn add_local(&mut self, name: Token) {
-        if self.compiler.locals.len() == u8::MAX as usize {
-            self.error("Too many local variables in function");
-            return;
+        match self.compiler.add_local(name) {
+            Err(e) => self.error(e),
+            _ => ()
         }
-        self.compiler.locals.push(Local {
-            name,
-            depth: LocalDepth::Uninitialized,
-        })
     }
 
     fn identifier_constant(&mut self, token: Token) -> u8 {
@@ -626,26 +622,14 @@ impl Parser {
 
         if can_assign && self.match_token(TokenType::Equal) {
             self.expression();
-            self.emit_bytes(set as u8, arg)
+            self.emit_bytes(set, arg)
         } else {
-            self.emit_bytes(get as u8, arg)
+            self.emit_bytes(get, arg)
         }
     }
 
     fn resolve_local(&mut self, name: &Token) -> Option<u8> {
-        let (i, depth) = self
-            .compiler
-            .locals
-            .iter()
-            .enumerate()
-            .rev()
-            .find_map(|(i, local)| {
-                if local.name.string_eq(name) {
-                    Some((i as u8, local.depth))
-                } else {
-                    None
-                }
-            })?;
+        let (i, depth) = self.compiler.resolve_local(name)?;
 
         if depth == LocalDepth::Uninitialized {
             self.error("Can't read local variable in its own initializer")
@@ -927,6 +911,33 @@ struct Compiler {
     function_type: FunctionType,
     locals: Vec<Local>,
     scope_depth: usize,
+}
+
+impl Compiler {
+    pub fn add_local(&mut self, name: Token) -> Result<(), &'static str> {
+        if self.locals.len() == u8::MAX as usize {
+            return Err("Too many local variables in function");
+        }
+        self.locals.push(Local {
+            name,
+            depth: LocalDepth::Uninitialized,
+        });
+        Ok(())
+    }
+
+    pub fn resolve_local(&self, name: &Token) -> Option<(u8, LocalDepth)> {
+        self.locals
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(i, local)| {
+                if local.name.string_eq(name) {
+                    Some((i as u8, local.depth))
+                } else {
+                    None
+                }
+            })
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
