@@ -1,13 +1,13 @@
 use crate::{
     string_intern::{StringInterner, StrId},
-    value::{Function, NativeFunction, Closure, FunctionId}, chunk::Chunk,
+    value::{Function, NativeFunction, Closure, FunctionId, ClosureId}, chunk::Chunk,
 };
 
 pub struct Memory {
     strings: StringInterner,
     functions: Vec<Function>,
     pub natives: Vec<NativeFunction>,
-    pub closures: Vec<Closure>
+    closures: Vec<Closure>
 }
 
 impl Memory {
@@ -49,5 +49,21 @@ impl Memory {
             name,
         });
         FunctionId(id)
+    }
+
+    pub fn closure(&self, id: ClosureId) -> &Closure {
+        &self.closures[id.0]
+    }
+
+    pub fn closure_mut(&mut self, id: ClosureId) -> &mut Closure {
+        &mut self.closures[id.0]
+    }
+
+    pub fn new_closure(&mut self, function: FunctionId) -> ClosureId {
+        let id = self.closures.len();
+        self.closures.push(Closure {
+            function
+        });
+        ClosureId(id)
     }
 }

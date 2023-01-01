@@ -54,7 +54,7 @@ impl Value {
         None
     }
 
-    pub fn as_closure(&self) -> Option<usize> {
+    pub fn as_closure(&self) -> Option<ClosureId> {
         if let Value::Object(o) = self {
             if let Object::Closure(id) = o.as_ref() {
                 return Some(*id);
@@ -67,12 +67,15 @@ impl Value {
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FunctionId(pub usize);
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ClosureId(pub usize);
+
 #[derive(PartialEq)]
 pub enum Object {
     String(&'static str),
     StringId(StrId),
     Function(FunctionId),
-    Closure(usize),
+    Closure(ClosureId),
     NativeFunction(usize),
 }
 

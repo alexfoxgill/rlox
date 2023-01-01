@@ -160,7 +160,7 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
                 write!(output, "<native fn {s}>").unwrap();
             }
             Object::Closure(id) => {
-                let c = &memory.closures[*id];
+                let c = &memory.closure(*id);
                 let f = &memory.function(c.function);
                 let s = memory.get_string(f.name);
                 write!(output, "<closure {s}>").unwrap();

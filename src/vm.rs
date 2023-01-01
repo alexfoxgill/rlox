@@ -12,7 +12,7 @@ use crate::{
     debug::{disassemble_instruction, print_value},
     memory::Memory,
     string_intern::StrId,
-    value::{NativeFunction, Object, Value, Closure, FunctionId},
+    value::{NativeFunction, Object, Value, FunctionId, ClosureId},
 };
 
 pub fn interpret(source: &str, config: Config) -> InterpretResult {
@@ -91,7 +91,7 @@ impl VM {
         loop {
             {
                 let c = self.frame().closure;
-                let f = self.memory.closures[c].function;
+                let f = self.memory.closure(c).function;
                 let ip = self.frame().instruction_pointer;
                 let chunk = &self.memory.function(f).chunk;
 
@@ -309,12 +309,8 @@ impl VM {
         }
     }
 
-    pub fn new_closure(&mut self, function_id: FunctionId) -> usize {
-        let closure = self.memory.closures.len();
-        self.memory.closures.push(Closure {
-            function: function_id,
-        });
-        closure
+    pub fn new_closure(&mut self, function: FunctionId) -> ClosureId {
+        self.memory.new_closure(function)
     }
 
     fn call_value(&mut self, value: Value, arg_count: u8) -> bool {
@@ -334,8 +330,8 @@ impl VM {
         }
     }
 
-    pub fn call(&mut self, c_id: usize, arg_count: usize) -> bool {
-        let closure = &self.memory.closures[c_id];
+    pub fn call(&mut self, c_id: ClosureId, arg_count: usize) -> bool {
+        let closure = &self.memory.closure(c_id);
         let f_id = closure.function;
         let arity = self.memory.function(f_id).arity;
         if arg_count != arity {
@@ -366,7 +362,7 @@ impl VM {
 
     fn chunk(&self) -> &Chunk {
         let c_id = self.frame().closure;
-        let f = self.memory.closures[c_id].function;
+        let f = self.memory.closure(c_id).function;
         &self.memory.function(f).chunk
     }
 
@@ -394,7 +390,7 @@ impl VM {
         write!(self.config.vm_error, "[line {line}] in script").unwrap();
 
         for frame in self.frames.iter().rev() {
-            let f_id = self.memory.closures[frame.closure].function;
+            let f_id = self.memory.closure(frame.closure).function;
             let function = &self.memory.function(f_id);
             let name = self.memory.get_string(function.name);
             writeln!(
@@ -435,7 +431,7 @@ fn is_falsey(value: Value) -> bool {
 }
 
 pub struct CallFrame {
-    pub closure: usize,
+    pub closure: ClosureId,
     pub instruction_pointer: usize,
     pub slot_start: usize,
 }
