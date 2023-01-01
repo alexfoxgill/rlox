@@ -8,6 +8,7 @@ use crate::{
     chunk::{Chunk, OpCode},
     compiler::compile,
     debug::{disassemble_instruction, print_value},
+    memory::Memory,
     string_intern::{StrId, StringInterner},
     value::{Function, NativeFunction, Object, Value},
 };
@@ -23,21 +24,17 @@ pub fn interpret(source: &str) -> InterpretResult {
 pub struct VM {
     pub frames: Vec<CallFrame>,
     pub stack: Vec<Value>,
-    pub strings: StringInterner,
-    pub functions: Vec<Function>,
     pub globals: HashMap<StrId, Value>,
-    pub natives: Vec<NativeFunction>,
+    pub memory: Memory,
 }
 
 impl VM {
-    pub fn new(strings: StringInterner, functions: Vec<Function>) -> Self {
+    pub fn new(memory: Memory) -> Self {
         let mut vm = Self {
             frames: Vec::new(),
             stack: Vec::new(),
-            strings,
-            functions,
             globals: HashMap::new(),
-            natives: Vec::new(),
+            memory,
         };
         vm.define_global("clock", move |_args| {
             let t = SystemTime::now()
@@ -92,7 +89,7 @@ impl VM {
                 print!("          ");
                 for value in self.stack.iter() {
                     print!("[ ");
-                    print_value(value, &self.strings, &self.functions, &self.natives);
+                    print_value(value, &self.memory);
                     print!(" ]");
                 }
                 print!("\n");
@@ -100,9 +97,7 @@ impl VM {
                 disassemble_instruction(
                     &self.chunk(),
                     self.frame().instruction_pointer,
-                    &self.strings,
-                    &self.functions,
-                    &self.natives,
+                    &self.memory,
                 );
             }
 
@@ -154,7 +149,7 @@ impl VM {
                             let (_, concat) = {
                                 let mut concat = a.to_owned();
                                 concat.push_str(b);
-                                self.strings.intern(&concat)
+                                self.memory.strings.intern(&concat)
                             };
                             self.push(Value::Object(Rc::new(Object::String(concat))));
                             continue;
@@ -219,7 +214,7 @@ impl VM {
 
                 OpCode::Print => {
                     let val = self.pop();
-                    print_value(&val, &self.strings, &self.functions, &self.natives);
+                    print_value(&val, &self.memory);
                     println!("");
                 }
 
@@ -234,7 +229,7 @@ impl VM {
                     match self.globals.get(&global_name) {
                         Some(value) => self.push(value.clone()),
                         None => {
-                            let name = self.strings.lookup(global_name);
+                            let name = self.memory.strings.lookup(global_name);
                             self.runtime_error(&format!("Undefined variable '{name}'"));
                             return InterpretResult::RuntimeError;
                         }
@@ -249,7 +244,7 @@ impl VM {
                             e.insert(val);
                         }
                         Entry::Vacant(_) => {
-                            let name = self.strings.lookup(global_name);
+                            let name = self.memory.strings.lookup(global_name);
                             self.runtime_error(&format!("Undefined variable' {name}'"));
                             return InterpretResult::RuntimeError;
                         }
@@ -301,7 +296,7 @@ impl VM {
         if let Some(f_id) = value.as_function() {
             self.call(f_id, arg_count as usize)
         } else if let Some(f_id) = value.as_native_function() {
-            let native = &self.natives[f_id];
+            let native = &self.memory.natives[f_id];
             let init_stack = self.stack.len() - arg_count as usize;
             let args = &self.stack[init_stack..];
             let res = (native.callable)(args);
@@ -315,7 +310,7 @@ impl VM {
     }
 
     pub fn call(&mut self, f_id: usize, arg_count: usize) -> bool {
-        let arity = self.functions[f_id].arity;
+        let arity = self.memory.functions[f_id].arity;
         if arg_count != arity {
             self.runtime_error(&format!("Expected {arity} arguments but got {arg_count}"));
             return false;
@@ -344,7 +339,7 @@ impl VM {
 
     fn chunk(&self) -> &Chunk {
         let f = self.frame().function;
-        &self.functions[f].chunk
+        &self.memory.functions[f].chunk
     }
 
     pub fn reset_stack(&mut self) {
@@ -371,8 +366,8 @@ impl VM {
         eprintln!("[line {line}] in script");
 
         for frame in self.frames.iter().rev() {
-            let function = &self.functions[frame.function];
-            let name = self.strings.lookup(function.name);
+            let function = &self.memory.functions[frame.function];
+            let name = self.memory.strings.lookup(function.name);
             eprintln!(
                 "[line {} in {}]",
                 function.chunk.lines[frame.instruction_pointer], name
@@ -383,9 +378,10 @@ impl VM {
     }
 
     fn define_global<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
-        let idx = self.natives.len();
-        let (name, _) = self.strings.intern(name);
-        self.natives
+        let idx = self.memory.natives.len();
+        let (name, _) = self.memory.strings.intern(name);
+        self.memory
+            .natives
             .push(NativeFunction::new(name, Box::new(function)));
         self.globals
             .insert(name, Value::Object(Rc::new(Object::NativeFunction(idx))));

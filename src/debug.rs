@@ -1,31 +1,20 @@
 use crate::{
     chunk::{Chunk, OpCode},
+    memory::Memory,
     string_intern::StringInterner,
     value::{Function, NativeFunction, Object, Value},
 };
 
-pub fn disassemble_chunk(
-    chunk: &Chunk,
-    name: &str,
-    strings: &StringInterner,
-    functions: &Vec<Function>,
-    natives: &Vec<NativeFunction>,
-) {
+pub fn disassemble_chunk(chunk: &Chunk, name: &str, memory: &Memory) {
     println!("== {name} ==");
 
     let mut offset = 0;
     while offset < chunk.code.len() {
-        offset = disassemble_instruction(chunk, offset, strings, functions, natives);
+        offset = disassemble_instruction(chunk, offset, memory);
     }
 }
 
-pub fn disassemble_instruction(
-    chunk: &Chunk,
-    offset: usize,
-    strings: &StringInterner,
-    functions: &Vec<Function>,
-    natives: &Vec<NativeFunction>,
-) -> usize {
+pub fn disassemble_instruction(chunk: &Chunk, offset: usize, memory: &Memory) -> usize {
     print!("{offset:0>4} ");
     let line = chunk.lines[offset];
     if offset > 0 && line == chunk.lines[offset - 1] {
@@ -50,7 +39,7 @@ pub fn disassemble_instruction(
         OpCode::Jump | OpCode::JumpIfFalse => jump_instruction(op_code, 1, chunk, offset),
 
         OpCode::Constant | OpCode::DefineGlobal | OpCode::GetGlobal | OpCode::SetGlobal => {
-            constant_instruction(op_code, chunk, offset, strings, functions, natives)
+            constant_instruction(op_code, chunk, offset, memory)
         }
 
         OpCode::Call | OpCode::GetLocal | OpCode::SetLocal => {
@@ -85,23 +74,11 @@ fn jump_instruction(op_code: OpCode, sign: i32, chunk: &Chunk, offset: usize) ->
     offset + 3
 }
 
-fn constant_instruction(
-    op_code: OpCode,
-    chunk: &Chunk,
-    offset: usize,
-    strings: &StringInterner,
-    functions: &Vec<Function>,
-    natives: &Vec<NativeFunction>,
-) -> usize {
+fn constant_instruction(op_code: OpCode, chunk: &Chunk, offset: usize, memory: &Memory) -> usize {
     let constant = chunk.code[offset + 1];
     let s = format!("{op_code:?}");
     print!("{s:<16} {constant:>4} ");
-    print_value(
-        &chunk.constants[constant as usize],
-        strings,
-        functions,
-        natives,
-    );
+    print_value(&chunk.constants[constant as usize], memory);
     print!("\n");
     offset + 2
 }
@@ -119,12 +96,7 @@ fn simple_instruction(op_code: OpCode, offset: usize) -> usize {
     offset + 1
 }
 
-pub fn print_value(
-    value: &Value,
-    strings: &StringInterner,
-    functions: &Vec<Function>,
-    natives: &Vec<NativeFunction>,
-) {
+pub fn print_value(value: &Value, memory: &Memory) {
     match value {
         Value::Nil => print!("nil"),
         Value::Bool(b) => print!("{b}"),
@@ -132,17 +104,17 @@ pub fn print_value(
         Value::Object(o) => match o.as_ref() {
             Object::String(s) => print!("{s}"),
             Object::StringId(id) => {
-                let s = strings.lookup(*id);
+                let s = memory.strings.lookup(*id);
                 print!("{s}")
             }
             Object::Function(id) => {
-                let f = &functions[*id];
-                let s = strings.lookup(f.name);
+                let f = &memory.functions[*id];
+                let s = memory.strings.lookup(f.name);
                 print!("<fn {s}>");
             }
             Object::NativeFunction(id) => {
-                let f = &natives[*id];
-                let s = strings.lookup(f.name);
+                let f = &memory.natives[*id];
+                let s = memory.strings.lookup(f.name);
                 print!("<native fn {s}>");
             }
         },

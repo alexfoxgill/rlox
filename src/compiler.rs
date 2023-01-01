@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::{
     chunk::{Chunk, OpCode},
     debug::disassemble_chunk,
+    memory::Memory,
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
     string_intern::StringInterner,
@@ -26,9 +27,8 @@ struct Compiler {
 
 struct Parser {
     scanner: Scanner,
-    strings: StringInterner,
-    functions: Vec<Function>,
     compiler: Compiler,
+    memory: Memory,
     current: Option<Token>,
     previous: Option<Token>,
     had_error: bool,
@@ -56,8 +56,7 @@ impl Parser {
     fn new(scanner: Scanner) -> Parser {
         let mut parser = Parser {
             scanner,
-            strings: StringInterner::with_capacity(16),
-            functions: Vec::new(),
+            memory: Memory::new(),
             compiler: Compiler {
                 enclosing: None,
                 function: 0,
@@ -86,7 +85,7 @@ impl Parser {
         if self.had_error {
             None
         } else {
-            let mut vm = VM::new(self.strings, self.functions);
+            let mut vm = VM::new(self.memory);
             vm.push(Value::Object(Rc::new(Object::Function(0))));
             vm.call(0, 0);
             Some(vm)
@@ -122,9 +121,9 @@ impl Parser {
 
         let f_id = self.compiler.function;
         if !self.had_error {
-            let f = &self.functions[f_id];
-            let name = self.strings.lookup(f.name);
-            disassemble_chunk(&f.chunk, name, &self.strings, &self.functions, &Vec::new())
+            let f = &self.memory.functions[f_id];
+            let name = self.memory.strings.lookup(f.name);
+            disassemble_chunk(&f.chunk, name, &self.memory)
         }
 
         if let Some(enclosing) = self.compiler.enclosing.take() {
@@ -136,12 +135,12 @@ impl Parser {
 
     fn chunk(&self) -> &Chunk {
         let f_id = self.compiler.function;
-        &self.functions[f_id].chunk
+        &self.memory.functions[f_id].chunk
     }
 
     fn chunk_mut(&mut self) -> &mut Chunk {
         let f_id = self.compiler.function;
-        &mut self.functions[f_id].chunk
+        &mut self.memory.functions[f_id].chunk
     }
 
     fn advance(&mut self) {
@@ -227,7 +226,7 @@ impl Parser {
                     break;
                 }
             }
-            self.functions[self.compiler.function].arity = arity;
+            self.memory.functions[self.compiler.function].arity = arity;
         }
         self.consume(TokenType::RightParen, "Expect ')' after parameters");
         self.consume(TokenType::LeftBrace, "Expect '{' before function body");
@@ -605,13 +604,13 @@ impl Parser {
     }
 
     fn make_string(&mut self, str: String) -> Value {
-        let (_, str) = self.strings.intern(&str);
+        let (_, str) = self.memory.strings.intern(&str);
         let obj = Rc::new(Object::String(str));
         Value::Object(obj)
     }
 
     fn make_string_id(&mut self, str: String) -> Value {
-        let (id, _) = self.strings.intern(&str);
+        let (id, _) = self.memory.strings.intern(&str);
         let obj = Rc::new(Object::StringId(id));
         Value::Object(obj)
     }
@@ -825,9 +824,9 @@ impl Parser {
     }
 
     fn new_function(&mut self, name: &str) -> usize {
-        let id = self.functions.len();
-        let (name, _) = self.strings.intern(name);
-        self.functions.push(Function {
+        let id = self.memory.functions.len();
+        let (name, _) = self.memory.strings.intern(name);
+        self.memory.functions.push(Function {
             arity: 0,
             chunk: Chunk::new(),
             name,

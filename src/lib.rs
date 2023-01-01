@@ -1,6 +1,7 @@
 pub mod chunk;
 pub mod compiler;
 pub mod debug;
+pub mod memory;
 pub mod rc_slice;
 pub mod scanner;
 pub mod string_intern;
@@ -10,6 +11,41 @@ pub mod vm;
 #[cfg(test)]
 mod tests {
     use crate::vm::interpret;
+
+    #[test]
+    fn make_closure() {
+        interpret(
+            r#"
+            fun makeClosure() {
+                var local = "local";
+                fun closure() {
+                  print local;
+                }
+                return closure;
+              }
+              
+              var closure = makeClosure();
+              closure();
+            "#,
+        );
+    }
+
+    #[test]
+    fn closures() {
+        interpret(
+            r#"
+            var x = "global";
+            fun outer() {
+              var x = "outer";
+              fun inner() {
+                print x;
+              }
+              inner();
+            }
+            outer();
+        "#,
+        );
+    }
 
     #[test]
     fn recursion_and_natives() {
