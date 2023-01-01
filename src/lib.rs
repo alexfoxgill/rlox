@@ -11,7 +11,7 @@ pub mod vm;
 
 #[cfg(test)]
 mod tests {
-    use std::{rc::Rc, cell::RefCell};
+    use std::{cell::RefCell, rc::Rc};
 
     use crate::config::Config;
 

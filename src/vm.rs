@@ -10,9 +10,9 @@ use crate::{
     compiler::compile,
     config::Config,
     debug::{disassemble_instruction, print_value},
-    memory::Memory,
+    memory::{ClosureId, FunctionId, Memory},
     string_intern::StrId,
-    value::{Value, FunctionId, ClosureId},
+    value::Value,
 };
 
 pub fn interpret(source: &str, config: Config) -> InterpretResult {
@@ -407,8 +407,7 @@ impl VM {
     fn define_native<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
         let id = self.memory.new_native(name, function);
         let name = self.memory.string_id(name);
-        self.globals
-            .insert(name, Value::NativeFunction(id));
+        self.globals.insert(name, Value::NativeFunction(id));
     }
 }
 
@@ -422,7 +421,7 @@ fn is_falsey(value: Value) -> bool {
     match value {
         Value::Nil => true,
         Value::Bool(b) => !b,
-        _ => false
+        _ => false,
     }
 }
 

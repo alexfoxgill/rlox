@@ -1,7 +1,7 @@
 use crate::{
     chunk::{Chunk, OpCode},
     memory::Memory,
-    value::{Value},
+    value::Value,
 };
 
 use std::fmt::Write;

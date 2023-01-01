@@ -1,13 +1,23 @@
 use crate::{
-    string_intern::{StringInterner, StrId},
-    value::{Function, NativeFunction, Closure, FunctionId, ClosureId, NativeFunctionId, Value}, chunk::Chunk,
+    chunk::Chunk,
+    string_intern::{StrId, StringInterner},
+    value::{Closure, Function, NativeFunction, Value},
 };
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct FunctionId(pub usize);
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ClosureId(pub usize);
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct NativeFunctionId(pub usize);
 
 pub struct Memory {
     strings: StringInterner,
     functions: Vec<Function>,
     natives: Vec<NativeFunction>,
-    closures: Vec<Closure>
+    closures: Vec<Closure>,
 }
 
 impl Memory {
@@ -16,7 +26,7 @@ impl Memory {
             strings: StringInterner::with_capacity(16),
             functions: Vec::new(),
             natives: Vec::new(),
-            closures: Vec::new()
+            closures: Vec::new(),
         }
     }
 
@@ -61,9 +71,7 @@ impl Memory {
 
     pub fn new_closure(&mut self, function: FunctionId) -> ClosureId {
         let id = self.closures.len();
-        self.closures.push(Closure {
-            function
-        });
+        self.closures.push(Closure { function });
         ClosureId(id)
     }
 
@@ -71,7 +79,11 @@ impl Memory {
         &self.natives[id.0]
     }
 
-    pub fn new_native(&mut self, name: &str, function: impl Fn(&[Value]) -> Value + 'static) -> NativeFunctionId {
+    pub fn new_native(
+        &mut self,
+        name: &str,
+        function: impl Fn(&[Value]) -> Value + 'static,
+    ) -> NativeFunctionId {
         let id = self.natives.len();
         let name = self.string_id(name);
         self.natives

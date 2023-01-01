@@ -1,4 +1,4 @@
-use std::{fmt::Write, rc::Rc, cell::RefCell};
+use std::{cell::RefCell, fmt::Write, rc::Rc};
 
 pub enum PrintOutput {
     Null,

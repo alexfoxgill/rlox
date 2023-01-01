@@ -4,10 +4,10 @@ use crate::{
     chunk::{Chunk, OpCode},
     config::Config,
     debug::disassemble_chunk,
-    memory::Memory,
+    memory::{FunctionId, Memory},
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    value::{FunctionType, Value, FunctionId},
+    value::{FunctionType, Value},
     vm::VM,
 };
 
@@ -20,7 +20,6 @@ struct Compiler {
     enclosing: Option<Box<Compiler>>,
     function: FunctionId,
     function_type: FunctionType,
-
     locals: Vec<Local>,
     scope_depth: usize,
 }
