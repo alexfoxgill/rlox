@@ -1,12 +1,12 @@
 use crate::{
     string_intern::{StringInterner, StrId},
-    value::{Function, NativeFunction, Closure, FunctionId, ClosureId}, chunk::Chunk,
+    value::{Function, NativeFunction, Closure, FunctionId, ClosureId, NativeFunctionId, Value}, chunk::Chunk,
 };
 
 pub struct Memory {
     strings: StringInterner,
     functions: Vec<Function>,
-    pub natives: Vec<NativeFunction>,
+    natives: Vec<NativeFunction>,
     closures: Vec<Closure>
 }
 
@@ -65,5 +65,17 @@ impl Memory {
             function
         });
         ClosureId(id)
+    }
+
+    pub fn native(&self, id: NativeFunctionId) -> &NativeFunction {
+        &self.natives[id.0]
+    }
+
+    pub fn new_native(&mut self, name: &str, function: impl Fn(&[Value]) -> Value + 'static) -> NativeFunctionId {
+        let id = self.natives.len();
+        let name = self.string_id(name);
+        self.natives
+            .push(NativeFunction::new(name, Box::new(function)));
+        NativeFunctionId(id)
     }
 }

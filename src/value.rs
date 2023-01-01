@@ -45,7 +45,7 @@ impl Value {
         None
     }
 
-    pub fn as_native_function(&self) -> Option<usize> {
+    pub fn as_native_function(&self) -> Option<NativeFunctionId> {
         if let Value::Object(o) = self {
             if let Object::NativeFunction(id) = o.as_ref() {
                 return Some(*id);
@@ -70,13 +70,16 @@ pub struct FunctionId(pub usize);
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ClosureId(pub usize);
 
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+pub struct NativeFunctionId(pub usize);
+
 #[derive(PartialEq)]
 pub enum Object {
     String(&'static str),
     StringId(StrId),
     Function(FunctionId),
     Closure(ClosureId),
-    NativeFunction(usize),
+    NativeFunction(NativeFunctionId),
 }
 
 pub struct Function {

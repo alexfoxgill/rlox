@@ -12,7 +12,7 @@ use crate::{
     debug::{disassemble_instruction, print_value},
     memory::Memory,
     string_intern::StrId,
-    value::{NativeFunction, Object, Value, FunctionId, ClosureId},
+    value::{Object, Value, FunctionId, ClosureId},
 };
 
 pub fn interpret(source: &str, config: Config) -> InterpretResult {
@@ -317,7 +317,7 @@ impl VM {
         if let Some(c_id) = value.as_closure() {
             self.call(c_id, arg_count as usize)
         } else if let Some(f_id) = value.as_native_function() {
-            let native = &self.memory.natives[f_id];
+            let native = &self.memory.native(f_id);
             let init_stack = self.stack.len() - arg_count as usize;
             let args = &self.stack[init_stack..];
             let res = (native.callable)(args);
@@ -405,13 +405,10 @@ impl VM {
     }
 
     fn define_native<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
-        let idx = self.memory.natives.len();
+        let id = self.memory.new_native(name, function);
         let name = self.memory.string_id(name);
-        self.memory
-            .natives
-            .push(NativeFunction::new(name, Box::new(function)));
         self.globals
-            .insert(name, Value::Object(Rc::new(Object::NativeFunction(idx))));
+            .insert(name, Value::Object(Rc::new(Object::NativeFunction(id))));
     }
 }
 

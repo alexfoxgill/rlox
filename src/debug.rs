@@ -155,7 +155,7 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
                 write!(output, "<fn {s}>").unwrap();
             }
             Object::NativeFunction(id) => {
-                let f = &memory.natives[*id];
+                let f = &memory.native(*id);
                 let s = memory.get_string(f.name);
                 write!(output, "<native fn {s}>").unwrap();
             }
