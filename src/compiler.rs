@@ -125,7 +125,7 @@ impl Parser {
         let f_id = self.compiler.function;
         if !self.had_error {
             let f = &self.memory.functions[f_id];
-            let name = self.memory.strings.lookup(f.name);
+            let name = self.memory.get_string(f.name);
             disassemble_chunk(
                 &f.chunk,
                 name,
@@ -612,13 +612,13 @@ impl Parser {
     }
 
     fn make_string(&mut self, str: String) -> Value {
-        let (_, str) = self.memory.strings.intern(&str);
+        let str = self.memory.string_intern(&str);
         let obj = Rc::new(Object::String(str));
         Value::Object(obj)
     }
 
     fn make_string_id(&mut self, str: String) -> Value {
-        let (id, _) = self.memory.strings.intern(&str);
+        let id = self.memory.string_id(&str);
         let obj = Rc::new(Object::StringId(id));
         Value::Object(obj)
     }
@@ -833,7 +833,7 @@ impl Parser {
 
     fn new_function(&mut self, name: &str) -> usize {
         let id = self.memory.functions.len();
-        let (name, _) = self.memory.strings.intern(name);
+        let name = self.memory.string_id(name);
         self.memory.functions.push(Function {
             arity: 0,
             chunk: Chunk::new(),

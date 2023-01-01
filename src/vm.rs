@@ -153,10 +153,10 @@ impl VM {
                     let a = self.pop();
                     match (a.as_string(), b.as_string()) {
                         (Some(a), Some(b)) => {
-                            let (_, concat) = {
+                            let concat = {
                                 let mut concat = a.to_owned();
                                 concat.push_str(b);
-                                self.memory.strings.intern(&concat)
+                                self.memory.string_intern(&concat)
                             };
                             self.push(Value::Object(Rc::new(Object::String(concat))));
                             continue;
@@ -236,7 +236,7 @@ impl VM {
                     match self.globals.get(&global_name) {
                         Some(value) => self.push(value.clone()),
                         None => {
-                            let name = self.memory.strings.lookup(global_name);
+                            let name = self.memory.get_string(global_name);
                             self.runtime_error(&format!("Undefined variable '{name}'"));
                             return InterpretResult::RuntimeError;
                         }
@@ -251,7 +251,7 @@ impl VM {
                             e.insert(val);
                         }
                         Entry::Vacant(_) => {
-                            let name = self.memory.strings.lookup(global_name);
+                            let name = self.memory.get_string(global_name);
                             self.runtime_error(&format!("Undefined variable' {name}'"));
                             return InterpretResult::RuntimeError;
                         }
@@ -396,7 +396,7 @@ impl VM {
         for frame in self.frames.iter().rev() {
             let f_id = self.memory.closures[frame.closure].function;
             let function = &self.memory.functions[f_id];
-            let name = self.memory.strings.lookup(function.name);
+            let name = self.memory.get_string(function.name);
             writeln!(
                 self.config.vm_error,
                 "[line {} in {}]",
@@ -410,7 +410,7 @@ impl VM {
 
     fn define_native<F: Fn(&[Value]) -> Value + 'static>(&mut self, name: &str, function: F) {
         let idx = self.memory.natives.len();
-        let (name, _) = self.memory.strings.intern(name);
+        let name = self.memory.string_id(name);
         self.memory
             .natives
             .push(NativeFunction::new(name, Box::new(function)));

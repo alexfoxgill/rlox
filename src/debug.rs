@@ -146,23 +146,23 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
                 write!(output, "{s}").unwrap();
             }
             Object::StringId(id) => {
-                let s = memory.strings.lookup(*id);
+                let s = memory.get_string(*id);
                 write!(output, "{s}").unwrap();
             }
             Object::Function(id) => {
                 let f = &memory.functions[*id];
-                let s = memory.strings.lookup(f.name);
+                let s = memory.get_string(f.name);
                 write!(output, "<fn {s}>").unwrap();
             }
             Object::NativeFunction(id) => {
                 let f = &memory.natives[*id];
-                let s = memory.strings.lookup(f.name);
+                let s = memory.get_string(f.name);
                 write!(output, "<native fn {s}>").unwrap();
             }
             Object::Closure(id) => {
                 let c = &memory.closures[*id];
                 let f = &memory.functions[c.function];
-                let s = memory.strings.lookup(f.name);
+                let s = memory.get_string(f.name);
                 write!(output, "<closure {s}>").unwrap();
             }
         },
