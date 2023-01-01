@@ -7,7 +7,7 @@ use crate::{
     memory::Memory,
     rc_slice::RcSlice,
     scanner::{Scanner, Token, TokenType},
-    value::{Function, FunctionType, Object, Value},
+    value::{FunctionType, Object, Value, FunctionId},
     vm::VM,
 };
 
@@ -18,7 +18,7 @@ pub fn compile(source: Rc<str>, config: Config) -> Option<VM> {
 
 struct Compiler {
     enclosing: Option<Box<Compiler>>,
-    function: usize,
+    function: FunctionId,
     function_type: FunctionType,
 
     locals: Vec<Local>,
@@ -61,7 +61,7 @@ impl Parser {
             memory: Memory::new(),
             compiler: Compiler {
                 enclosing: None,
-                function: 0,
+                function: FunctionId(0),
                 function_type: FunctionType::Script,
                 locals: Vec::new(),
                 scope_depth: 0,
@@ -88,7 +88,7 @@ impl Parser {
             None
         } else {
             let mut vm = VM::new(self.memory, self.config);
-            let closure = vm.new_closure(0);
+            let closure = vm.new_closure(FunctionId(0));
             vm.push(Value::Object(Rc::new(Object::Closure(closure))));
             vm.call(closure, 0);
             Some(vm)
@@ -99,8 +99,8 @@ impl Parser {
         let compiler = Compiler {
             enclosing: None,
             function: match function_type {
-                FunctionType::Script => 0,
-                FunctionType::Function => self.new_function(self.previous().slice.as_str()),
+                FunctionType::Script => FunctionId(0),
+                FunctionType::Function => self.memory.new_function(self.previous().slice.as_str()),
             },
             function_type,
             locals: vec![Local {
@@ -119,12 +119,12 @@ impl Parser {
         self.compiler.enclosing = Some(Box::new(enclosing));
     }
 
-    fn end_compiler(&mut self) -> usize {
+    fn end_compiler(&mut self) -> FunctionId {
         self.emit_return();
 
         let f_id = self.compiler.function;
         if !self.had_error {
-            let f = &self.memory.functions[f_id];
+            let f = &self.memory.function(f_id);
             let name = self.memory.get_string(f.name);
             disassemble_chunk(
                 &f.chunk,
@@ -143,12 +143,12 @@ impl Parser {
 
     fn chunk(&self) -> &Chunk {
         let f_id = self.compiler.function;
-        &self.memory.functions[f_id].chunk
+        &self.memory.function(f_id).chunk
     }
 
     fn chunk_mut(&mut self) -> &mut Chunk {
         let f_id = self.compiler.function;
-        &mut self.memory.functions[f_id].chunk
+        &mut self.memory.function_mut(f_id).chunk
     }
 
     fn advance(&mut self) {
@@ -234,7 +234,7 @@ impl Parser {
                     break;
                 }
             }
-            self.memory.functions[self.compiler.function].arity = arity;
+            self.memory.function_mut(self.compiler.function).arity = arity;
         }
         self.consume(TokenType::RightParen, "Expect ')' after parameters");
         self.consume(TokenType::LeftBrace, "Expect '{' before function body");
@@ -831,15 +831,8 @@ impl Parser {
         self.previous.as_ref().unwrap().clone()
     }
 
-    fn new_function(&mut self, name: &str) -> usize {
-        let id = self.memory.functions.len();
-        let name = self.memory.string_id(name);
-        self.memory.functions.push(Function {
-            arity: 0,
-            chunk: Chunk::new(),
-            name,
-        });
-        id
+    fn new_function(&mut self, name: &str) -> FunctionId {
+        self.memory.new_function(name)
     }
 
     fn synchronize(&mut self) {

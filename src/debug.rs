@@ -150,7 +150,7 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
                 write!(output, "{s}").unwrap();
             }
             Object::Function(id) => {
-                let f = &memory.functions[*id];
+                let f = &memory.function(*id);
                 let s = memory.get_string(f.name);
                 write!(output, "<fn {s}>").unwrap();
             }
@@ -161,7 +161,7 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
             }
             Object::Closure(id) => {
                 let c = &memory.closures[*id];
-                let f = &memory.functions[c.function];
+                let f = &memory.function(c.function);
                 let s = memory.get_string(f.name);
                 write!(output, "<closure {s}>").unwrap();
             }

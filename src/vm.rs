@@ -12,7 +12,7 @@ use crate::{
     debug::{disassemble_instruction, print_value},
     memory::Memory,
     string_intern::StrId,
-    value::{NativeFunction, Object, Value, Closure},
+    value::{NativeFunction, Object, Value, Closure, FunctionId},
 };
 
 pub fn interpret(source: &str, config: Config) -> InterpretResult {
@@ -93,7 +93,7 @@ impl VM {
                 let c = self.frame().closure;
                 let f = self.memory.closures[c].function;
                 let ip = self.frame().instruction_pointer;
-                let chunk = &self.memory.functions[f].chunk;
+                let chunk = &self.memory.function(f).chunk;
 
                 let output = &mut self.config.vm_debug;
 
@@ -309,7 +309,7 @@ impl VM {
         }
     }
 
-    pub fn new_closure(&mut self, function_id: usize) -> usize {
+    pub fn new_closure(&mut self, function_id: FunctionId) -> usize {
         let closure = self.memory.closures.len();
         self.memory.closures.push(Closure {
             function: function_id,
@@ -337,7 +337,7 @@ impl VM {
     pub fn call(&mut self, c_id: usize, arg_count: usize) -> bool {
         let closure = &self.memory.closures[c_id];
         let f_id = closure.function;
-        let arity = self.memory.functions[f_id].arity;
+        let arity = self.memory.function(f_id).arity;
         if arg_count != arity {
             self.runtime_error(&format!("Expected {arity} arguments but got {arg_count}"));
             return false;
@@ -367,7 +367,7 @@ impl VM {
     fn chunk(&self) -> &Chunk {
         let c_id = self.frame().closure;
         let f = self.memory.closures[c_id].function;
-        &self.memory.functions[f].chunk
+        &self.memory.function(f).chunk
     }
 
     pub fn reset_stack(&mut self) {
@@ -395,7 +395,7 @@ impl VM {
 
         for frame in self.frames.iter().rev() {
             let f_id = self.memory.closures[frame.closure].function;
-            let function = &self.memory.functions[f_id];
+            let function = &self.memory.function(f_id);
             let name = self.memory.get_string(function.name);
             writeln!(
                 self.config.vm_error,

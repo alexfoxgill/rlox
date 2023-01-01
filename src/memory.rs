@@ -1,11 +1,11 @@
 use crate::{
     string_intern::{StringInterner, StrId},
-    value::{Function, NativeFunction, Closure},
+    value::{Function, NativeFunction, Closure, FunctionId}, chunk::Chunk,
 };
 
 pub struct Memory {
     strings: StringInterner,
-    pub functions: Vec<Function>,
+    functions: Vec<Function>,
     pub natives: Vec<NativeFunction>,
     pub closures: Vec<Closure>
 }
@@ -30,5 +30,24 @@ impl Memory {
 
     pub fn get_string(&self, id: StrId) -> &str {
         self.strings.lookup(id)
+    }
+
+    pub fn function(&self, id: FunctionId) -> &Function {
+        &self.functions[id.0]
+    }
+
+    pub fn function_mut(&mut self, id: FunctionId) -> &mut Function {
+        &mut self.functions[id.0]
+    }
+
+    pub fn new_function(&mut self, name: &str) -> FunctionId {
+        let id = self.functions.len();
+        let name = self.string_id(name);
+        self.functions.push(Function {
+            arity: 0,
+            chunk: Chunk::new(),
+            name,
+        });
+        FunctionId(id)
     }
 }
