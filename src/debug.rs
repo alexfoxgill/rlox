@@ -1,7 +1,7 @@
 use crate::{
     chunk::{Chunk, OpCode},
     memory::Memory,
-    value::Value,
+    value::Value, vm::InstructionPointer,
 };
 
 use std::fmt::Write;
@@ -9,33 +9,33 @@ use std::fmt::Write;
 pub fn disassemble_chunk(chunk: &Chunk, name: &str, memory: &Memory, output: &mut impl Write) {
     writeln!(output, "== {name} ==").unwrap();
 
-    let mut offset = 0;
-    while offset < chunk.code.len() {
+    let mut offset = InstructionPointer(0);
+    while offset.0 < chunk.code.len() {
         offset = disassemble_instruction(chunk, offset, memory, output);
     }
 }
 
 pub fn disassemble_instruction(
     chunk: &Chunk,
-    mut offset: usize,
+    mut offset: InstructionPointer,
     memory: &Memory,
     output: &mut impl Write,
-) -> usize {
-    write!(output, "{offset:0>4} ").unwrap();
-    let line = chunk.lines[offset];
-    if offset > 0 && line == chunk.lines[offset - 1] {
+) -> InstructionPointer {
+    write!(output, "{offset} ").unwrap();
+    let line = chunk.line(offset);
+    if offset.0 > 0 && line == chunk.line(offset.minus(1)) {
         write!(output, "   | ").unwrap();
     } else {
         write!(output, "{line:>4} ").unwrap();
     }
 
-    let byte = chunk.code[offset];
+    let byte = chunk.byte(offset);
 
     let op_code: OpCode = match byte.try_into() {
         Ok(x) => x,
         Err(_) => {
             write!(output, "Unknown opcode {byte}").unwrap();
-            return offset + 1;
+            return offset.plus(1);
         }
     };
 
@@ -69,9 +69,9 @@ pub fn disassemble_instruction(
         | OpCode::Pop => simple_instruction(op_code, offset, output),
 
         OpCode::Closure => {
-            offset += 1;
-            let constant = chunk.code[offset];
-            offset += 1;
+            offset.increment(1);
+            let constant = chunk.byte(offset);
+            offset.increment(1);
             let s = format!("{op_code:?}");
             write!(output, "{s:<16} {:>4} ", constant).unwrap();
             print_value(&chunk.constants[constant as usize], memory, output);
@@ -85,49 +85,49 @@ fn jump_instruction(
     op_code: OpCode,
     sign: i32,
     chunk: &Chunk,
-    offset: usize,
+    offset: InstructionPointer,
     output: &mut impl Write,
-) -> usize {
-    let b1 = chunk.code[offset + 1] as u16;
-    let b2 = chunk.code[offset + 2] as u16;
+) -> InstructionPointer {
+    let b1 = chunk.byte(offset.plus(1)) as u16;
+    let b2 = chunk.byte(offset.plus(2)) as u16;
     let jump = (b1 << 8) | b2;
     let s = format!("{op_code:?}");
-    let dest = (offset as i32 + 3) + (sign * jump as i32);
-    writeln!(output, "{s:<16} {offset:0>4} -> {dest:0>4}").unwrap();
-    offset + 3
+    let dest = (offset.0 as i32 + 3) + (sign * jump as i32);
+    writeln!(output, "{s:<16} {offset} -> {dest:0>4}").unwrap();
+    offset.plus(3)
 }
 
 fn constant_instruction(
     op_code: OpCode,
     chunk: &Chunk,
-    offset: usize,
+    offset: InstructionPointer,
     memory: &Memory,
     output: &mut impl Write,
-) -> usize {
-    let constant = chunk.code[offset + 1];
+) -> InstructionPointer {
+    let constant = chunk.byte(offset.plus(1));
     let s = format!("{op_code:?}");
     write!(output, "{s:<16} {constant:>4} ").unwrap();
     print_value(&chunk.constants[constant as usize], memory, output);
     write!(output, "\n").unwrap();
-    offset + 2
+    offset.plus(2)
 }
 
 fn byte_instruction(
     op_code: OpCode,
     chunk: &Chunk,
-    offset: usize,
+    offset: InstructionPointer,
     output: &mut impl Write,
-) -> usize {
-    let slot = chunk.code[offset + 1];
+) -> InstructionPointer {
+    let slot = chunk.byte(offset.plus(1));
     let s = format!("{op_code:?}");
     writeln!(output, "{s:<16} {slot:0>4}").unwrap();
-    offset + 2
+    offset.plus(2)
 }
 
-fn simple_instruction(op_code: OpCode, offset: usize, output: &mut impl Write) -> usize {
+fn simple_instruction(op_code: OpCode, offset: InstructionPointer, output: &mut impl Write) -> InstructionPointer {
     let s = format!("{op_code:?}");
     writeln!(output, "{s:<16}").unwrap();
-    offset + 1
+    offset.plus(1)
 }
 
 pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {

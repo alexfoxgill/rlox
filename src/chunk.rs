@@ -1,6 +1,6 @@
 use std::error::Error;
 
-use crate::value::Value;
+use crate::{value::Value, vm::InstructionPointer};
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -111,5 +111,13 @@ impl Chunk {
     pub fn add_constant(&mut self, value: Value) -> usize {
         self.constants.push(value);
         self.constants.len() - 1
+    }
+
+    pub fn line(&self, i: InstructionPointer) -> usize {
+        self.lines[i.0]
+    }
+
+    pub fn byte(&self, i: InstructionPointer) -> u8 {
+        self.code[i.0]
     }
 }

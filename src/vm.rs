@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt::Write,
+    fmt::{Write, self},
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -51,8 +51,8 @@ impl VM {
     }
 
     pub fn read_byte(&mut self) -> u8 {
-        let byte = self.chunk().code[self.frame().instruction_pointer];
-        self.frame_mut().instruction_pointer += 1;
+        let byte = self.chunk().byte(self.frame().instruction_pointer);
+        self.frame_mut().instruction_pointer.increment(1);
         byte
     }
 
@@ -275,18 +275,18 @@ impl VM {
                 OpCode::JumpIfFalse => {
                     let offset = self.read_short();
                     if is_falsey(self.peek(0)) {
-                        self.frame_mut().instruction_pointer += offset;
+                        self.frame_mut().instruction_pointer.increment(offset);
                     }
                 }
 
                 OpCode::Jump => {
                     let offset = self.read_short();
-                    self.frame_mut().instruction_pointer += offset;
+                    self.frame_mut().instruction_pointer.increment(offset);
                 }
 
                 OpCode::Loop => {
                     let offset = self.read_short();
-                    self.frame_mut().instruction_pointer -= offset;
+                    self.frame_mut().instruction_pointer.decrement(offset);
                 }
 
                 OpCode::Call => {
@@ -346,7 +346,7 @@ impl VM {
 
         self.frames.push(CallFrame {
             closure: c_id,
-            instruction_pointer: 0,
+            instruction_pointer: InstructionPointer(0),
             slot_start: self.stack.len() - arg_count - 1,
         });
         true
@@ -385,7 +385,7 @@ impl VM {
     fn runtime_error(&mut self, error: &str) {
         write!(self.config.vm_error, "{error}").unwrap();
 
-        let ins = self.chunk().code[self.frame().instruction_pointer - 1];
+        let ins = self.chunk().byte(self.frame().instruction_pointer.minus(1));
         let line = self.chunk().lines[ins as usize];
         write!(self.config.vm_error, "[line {line}] in script").unwrap();
 
@@ -396,7 +396,7 @@ impl VM {
             writeln!(
                 self.config.vm_error,
                 "[line {} in {}]",
-                function.chunk.lines[frame.instruction_pointer], name
+                function.chunk.line(frame.instruction_pointer), name
             )
             .unwrap();
         }
@@ -410,6 +410,34 @@ impl VM {
         self.globals.insert(name, Value::NativeFunction(id));
     }
 }
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct InstructionPointer(pub usize);
+
+impl InstructionPointer {
+    pub fn increment(&mut self, offset: usize) {
+        self.0 += offset;
+    }
+
+    pub fn decrement(&mut self, offset: usize) {
+        self.0 -= offset;
+    }
+
+    pub fn plus(&self, offset: usize) -> InstructionPointer {
+        InstructionPointer(self.0 + offset)
+    }
+
+    pub fn minus(&self, offset: usize) -> InstructionPointer {
+        InstructionPointer(self.0 - offset)
+    }
+}
+
+impl fmt::Display for InstructionPointer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:0>4}", self.0)
+    }
+}
+
 
 pub enum InterpretResult {
     OK,
@@ -427,6 +455,6 @@ fn is_falsey(value: Value) -> bool {
 
 pub struct CallFrame {
     pub closure: ClosureId,
-    pub instruction_pointer: usize,
+    pub instruction_pointer: InstructionPointer,
     pub slot_start: usize,
 }

@@ -37,7 +37,14 @@ impl Parser {
                 enclosing: None,
                 function: FunctionId(0),
                 function_type: FunctionType::Script,
-                locals: Vec::new(),
+                locals: vec![Local {
+                    name: Token {
+                        typ: TokenType::Fun,
+                        line: 0,
+                        slice: RcSlice::from_string(""),
+                    },
+                    depth: LocalDepth::Initialized(0),
+                }],
                 scope_depth: 0,
             },
             current: None,

@@ -13,10 +13,12 @@ pub mod vm;
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
-    use crate::config::Config;
+    use crate::config::{Config, PrintOutput};
 
     fn interpret(str: &str) {
-        let config = Config::default();
+        let mut config = Config::default();
+        config.compiler_debug = PrintOutput::StdOut;
+        config.vm_debug = PrintOutput::StdOut;
         crate::vm::interpret(str, config);
     }
 
@@ -199,13 +201,15 @@ mod tests {
 
     #[test]
     fn for_loop() {
-        interpret(
+        let res = interpret_str(
             r#"
             for (var x = 50; x < 51; x = x + 1) {
                 print x;
             }
         "#,
         );
+
+        assert_eq!(res, "50")
     }
 
     #[test]
