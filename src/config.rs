@@ -1,11 +1,15 @@
-use std::fmt::Write;
+use std::{fmt::Write, rc::Rc, cell::RefCell};
 
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum PrintOutput {
     Null,
     StdOut,
     StdErr,
-    Str(String),
+    Str(Rc<RefCell<String>>),
+}
+impl PrintOutput {
+    pub fn redirect(&mut self, string: Rc<RefCell<String>>) {
+        *self = PrintOutput::Str(string);
+    }
 }
 
 impl Write for PrintOutput {
@@ -14,13 +18,12 @@ impl Write for PrintOutput {
             PrintOutput::Null => (),
             PrintOutput::StdOut => print!("{s}"),
             PrintOutput::StdErr => eprint!("{s}"),
-            PrintOutput::Str(string) => string.push_str(s),
+            PrintOutput::Str(string) => string.borrow_mut().push_str(s),
         }
         Ok(())
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub struct Config {
     pub vm_debug: PrintOutput,
     pub vm_error: PrintOutput,

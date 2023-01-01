@@ -11,11 +11,22 @@ pub mod vm;
 
 #[cfg(test)]
 mod tests {
+    use std::{rc::Rc, cell::RefCell};
+
     use crate::config::Config;
 
     fn interpret(str: &str) {
         let config = Config::default();
         crate::vm::interpret(str, config);
+    }
+
+    fn interpret_str(str: &str) -> String {
+        let mut config = Config::default();
+        let output = Rc::new(RefCell::new(String::new()));
+        config.print_output.redirect(output.clone());
+        crate::vm::interpret(str, config);
+        let rc = output.borrow();
+        rc.trim_matches('\n').into()
     }
 
     #[test]
@@ -80,7 +91,7 @@ mod tests {
 
     #[test]
     fn higher_order_fuction() {
-        interpret(
+        let res = interpret_str(
             r#"
             fun foo(text) {
                 return text + text;
@@ -93,11 +104,13 @@ mod tests {
             print call(foo, "blah");
         "#,
         );
+
+        assert_eq!(res, "blahblah");
     }
 
     #[test]
     fn function_return() {
-        interpret(
+        let res = interpret_str(
             r#"
             fun foo() {
                 return "blah";
@@ -106,11 +119,13 @@ mod tests {
             print foo();
         "#,
         );
+
+        assert_eq!(res, "blah");
     }
 
     #[test]
     fn nested_function_calls() {
-        interpret(
+        let res = interpret_str(
             r#"
             fun bar(a) {
                 print a;
@@ -123,6 +138,8 @@ mod tests {
             foo("blah");
         "#,
         );
+
+        assert_eq!(res, "blah")
     }
 
     #[test]
