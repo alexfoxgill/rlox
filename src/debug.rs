@@ -1,7 +1,8 @@
 use crate::{
     chunk::{Chunk, OpCode},
     memory::Memory,
-    value::Value, vm::InstructionPointer,
+    value::Value,
+    vm::InstructionPointer,
 };
 
 use std::fmt::Write;
@@ -70,11 +71,11 @@ pub fn disassemble_instruction(
 
         OpCode::Closure => {
             offset.increment(1);
-            let constant = chunk.byte(offset);
+            let constant = chunk.constant(offset);
             offset.increment(1);
             let s = format!("{op_code:?}");
-            write!(output, "{s:<16} {:>4} ", constant).unwrap();
-            print_value(&chunk.constants[constant as usize], memory, output);
+            write!(output, "{s:<16} {constant:?} ").unwrap();
+            print_value(&chunk.constant_value(constant), memory, output);
             write!(output, "\n").unwrap();
             offset
         }
@@ -104,10 +105,10 @@ fn constant_instruction(
     memory: &Memory,
     output: &mut impl Write,
 ) -> InstructionPointer {
-    let constant = chunk.byte(offset.plus(1));
+    let constant = chunk.constant(offset.plus(1));
     let s = format!("{op_code:?}");
-    write!(output, "{s:<16} {constant:>4} ").unwrap();
-    print_value(&chunk.constants[constant as usize], memory, output);
+    write!(output, "{s:<16} {constant:?} ").unwrap();
+    print_value(&chunk.constant_value(constant), memory, output);
     write!(output, "\n").unwrap();
     offset.plus(2)
 }
@@ -124,7 +125,11 @@ fn byte_instruction(
     offset.plus(2)
 }
 
-fn simple_instruction(op_code: OpCode, offset: InstructionPointer, output: &mut impl Write) -> InstructionPointer {
+fn simple_instruction(
+    op_code: OpCode,
+    offset: InstructionPointer,
+    output: &mut impl Write,
+) -> InstructionPointer {
     let s = format!("{op_code:?}");
     writeln!(output, "{s:<16}").unwrap();
     offset.plus(1)

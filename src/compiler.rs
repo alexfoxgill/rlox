@@ -1,7 +1,7 @@
 use std::{fmt::Write, rc::Rc};
 
 use crate::{
-    chunk::{Chunk, OpCode},
+    chunk::{Chunk, ConstantId, OpCode},
     config::Config,
     debug::disassemble_chunk,
     memory::{FunctionId, Memory},
@@ -258,7 +258,7 @@ impl Parser {
         if self.match_token(TokenType::Equal) {
             self.expression();
         } else {
-            self.emit_op_code(OpCode::Nil);
+            self.emit_byte(OpCode::Nil);
         }
 
         self.consume(
@@ -299,7 +299,7 @@ impl Parser {
         } else {
             self.expression();
             self.consume(TokenType::SemiColon, "Expect ':' after return value");
-            self.emit_op_code(OpCode::Return);
+            self.emit_byte(OpCode::Return);
         }
     }
 
@@ -310,14 +310,14 @@ impl Parser {
 
         let then_jump = self.emit_jump(OpCode::JumpIfFalse);
 
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
 
         self.statement();
         let else_jump = self.emit_jump(OpCode::Jump);
 
         self.patch_jump(then_jump);
 
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
 
         if self.match_token(TokenType::Else) {
             self.statement();
@@ -333,13 +333,13 @@ impl Parser {
         self.consume(TokenType::RightParen, "Expect ')' after condition");
 
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse);
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
         self.statement();
 
         self.emit_loop(loop_start);
 
         self.patch_jump(exit_jump);
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
     }
 
     fn for_statement(&mut self) {
@@ -361,7 +361,7 @@ impl Parser {
             self.consume(TokenType::SemiColon, "Expect ';' after loop");
 
             exit_jump = Some(self.emit_jump(OpCode::JumpIfFalse));
-            self.emit_op_code(OpCode::Pop); // pop the condition
+            self.emit_byte(OpCode::Pop); // pop the condition
         }
 
         if !self.match_token(TokenType::RightParen) {
@@ -369,7 +369,7 @@ impl Parser {
             let increment_start = self.chunk().code.len();
 
             self.expression();
-            self.emit_op_code(OpCode::Pop); // pop the increment expression
+            self.emit_byte(OpCode::Pop); // pop the increment expression
             self.consume(TokenType::RightParen, "Expect ')' after for clauses");
 
             self.emit_loop(loop_start);
@@ -382,7 +382,7 @@ impl Parser {
 
         if let Some(exit_jump) = exit_jump {
             self.patch_jump(exit_jump);
-            self.emit_op_code(OpCode::Pop); // pop the condition again
+            self.emit_byte(OpCode::Pop); // pop the condition again
         }
 
         self.end_scope();
@@ -451,13 +451,13 @@ impl Parser {
     fn print_statement(&mut self) {
         self.expression();
         self.consume(TokenType::SemiColon, "Expect ';' after value");
-        self.emit_op_code(OpCode::Print);
+        self.emit_byte(OpCode::Print);
     }
 
     fn expression_statement(&mut self) {
         self.expression();
         self.consume(TokenType::SemiColon, "Expect ';' after expression");
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
     }
 
     fn begin_scope(&mut self) {
@@ -487,7 +487,7 @@ impl Parser {
         self.compiler.scope_depth -= 1;
 
         for _ in 0..to_pop {
-            self.emit_op_code(OpCode::Pop);
+            self.emit_byte(OpCode::Pop);
             self.compiler.locals.pop();
         }
     }
@@ -508,8 +508,8 @@ impl Parser {
         self.parse_precedence(Precedence::Unary);
 
         match op_type {
-            TokenType::Minus => self.emit_op_code(OpCode::Negate),
-            TokenType::Bang => self.emit_op_code(OpCode::Not),
+            TokenType::Minus => self.emit_byte(OpCode::Negate),
+            TokenType::Bang => self.emit_byte(OpCode::Not),
             _ => (),
         }
     }
@@ -521,16 +521,16 @@ impl Parser {
         self.parse_precedence(rule.precedence.next());
 
         match op_type {
-            TokenType::BangEqual => self.emit_bytes(OpCode::Equal as u8, OpCode::Not as u8),
-            TokenType::EqualEqual => self.emit_op_code(OpCode::Equal),
-            TokenType::Greater => self.emit_op_code(OpCode::Greater),
-            TokenType::GreaterEqual => self.emit_bytes(OpCode::Less as u8, OpCode::Not as u8),
-            TokenType::Less => self.emit_op_code(OpCode::Less),
-            TokenType::LessEqual => self.emit_bytes(OpCode::Greater as u8, OpCode::Not as u8),
-            TokenType::Plus => self.emit_op_code(OpCode::Add),
-            TokenType::Minus => self.emit_op_code(OpCode::Subtract),
-            TokenType::Star => self.emit_op_code(OpCode::Multiply),
-            TokenType::Slash => self.emit_op_code(OpCode::Divide),
+            TokenType::BangEqual => self.emit_bytes(OpCode::Equal, OpCode::Not),
+            TokenType::EqualEqual => self.emit_byte(OpCode::Equal),
+            TokenType::Greater => self.emit_byte(OpCode::Greater),
+            TokenType::GreaterEqual => self.emit_bytes(OpCode::Less, OpCode::Not),
+            TokenType::Less => self.emit_byte(OpCode::Less),
+            TokenType::LessEqual => self.emit_bytes(OpCode::Greater, OpCode::Not),
+            TokenType::Plus => self.emit_byte(OpCode::Add),
+            TokenType::Minus => self.emit_byte(OpCode::Subtract),
+            TokenType::Star => self.emit_byte(OpCode::Multiply),
+            TokenType::Slash => self.emit_byte(OpCode::Divide),
             _ => (),
         }
     }
@@ -604,9 +604,9 @@ impl Parser {
 
     fn literal(&mut self) {
         match self.previous().typ {
-            TokenType::False => self.emit_op_code(OpCode::False),
-            TokenType::Nil => self.emit_op_code(OpCode::Nil),
-            TokenType::True => self.emit_op_code(OpCode::True),
+            TokenType::False => self.emit_byte(OpCode::False),
+            TokenType::Nil => self.emit_byte(OpCode::Nil),
+            TokenType::True => self.emit_byte(OpCode::True),
             _ => (),
         }
     }
@@ -662,7 +662,7 @@ impl Parser {
     pub fn and(&mut self) {
         let end_jump = self.emit_jump(OpCode::JumpIfFalse);
 
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
 
         self.parse_precedence(Precedence::And);
 
@@ -674,7 +674,7 @@ impl Parser {
         let end_jump = self.emit_jump(OpCode::Jump);
 
         self.patch_jump(else_jump);
-        self.emit_op_code(OpCode::Pop);
+        self.emit_byte(OpCode::Pop);
 
         self.parse_precedence(Precedence::Or);
 
@@ -716,7 +716,7 @@ impl Parser {
     }
 
     fn emit_jump(&mut self, instruction: OpCode) -> usize {
-        self.emit_op_code(instruction);
+        self.emit_byte(instruction);
         self.emit_byte(0xFF);
         self.emit_byte(0xFF);
         self.chunk().code.len() - 2
@@ -735,19 +735,21 @@ impl Parser {
 
     fn emit_constant(&mut self, value: Value) {
         let constant = self.make_constant(value);
-        self.emit_bytes(OpCode::Constant as u8, constant);
+        self.emit_bytes(OpCode::Constant, constant);
     }
 
     fn make_constant(&mut self, value: Value) -> u8 {
         let c = self.chunk_mut().add_constant(value);
-        c.try_into().unwrap_or_else(|_| {
+        if c.over_u8() {
             self.error("Too many constants in one chunk");
             0
-        })
+        } else {
+            c.to_byte()
+        }
     }
 
     fn emit_loop(&mut self, start: usize) {
-        self.emit_op_code(OpCode::Loop);
+        self.emit_byte(OpCode::Loop);
 
         let offset = self.chunk().code.len() - start + 2;
         if offset > (u16::MAX as usize) {
@@ -758,12 +760,8 @@ impl Parser {
     }
 
     fn emit_return(&mut self) {
-        self.emit_op_code(OpCode::Nil);
-        self.emit_op_code(OpCode::Return);
-    }
-
-    fn emit_op_code(&mut self, op_code: OpCode) {
-        self.emit_byte(op_code as u8)
+        self.emit_byte(OpCode::Nil);
+        self.emit_byte(OpCode::Return);
     }
 
     fn emit_short(&mut self, short: u16) {
@@ -773,15 +771,15 @@ impl Parser {
         self.emit_byte(b);
     }
 
-    fn emit_byte(&mut self, byte: u8) {
+    fn emit_byte(&mut self, byte: impl ToByte) {
         let line = self.previous().line;
-        self.chunk_mut().write(byte, line)
+        self.chunk_mut().write(byte.to_byte(), line)
     }
 
-    fn emit_bytes(&mut self, a: u8, b: u8) {
+    fn emit_bytes(&mut self, a: impl ToByte, b: impl ToByte) {
         let line = self.previous().line;
-        self.chunk_mut().write(a, line);
-        self.chunk_mut().write(b, line);
+        self.chunk_mut().write(a.to_byte(), line);
+        self.chunk_mut().write(b.to_byte(), line);
     }
 
     fn error_at_current(&mut self, message: &str) {
@@ -946,4 +944,26 @@ impl Local {
 enum LocalDepth {
     Uninitialized,
     Initialized(usize),
+}
+
+trait ToByte {
+    fn to_byte(self) -> u8;
+}
+
+impl ToByte for ConstantId {
+    fn to_byte(self) -> u8 {
+        self.0 as u8
+    }
+}
+
+impl ToByte for OpCode {
+    fn to_byte(self) -> u8 {
+        self as u8
+    }
+}
+
+impl ToByte for u8 {
+    fn to_byte(self) -> u8 {
+        self
+    }
 }

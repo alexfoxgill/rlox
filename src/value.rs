@@ -3,7 +3,7 @@ use crate::{
     string_intern::StrId,
 };
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Copy)]
 pub enum Value {
     Nil,
     Bool(bool),

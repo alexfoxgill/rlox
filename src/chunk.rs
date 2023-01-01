@@ -1,4 +1,4 @@
-use std::error::Error;
+use std::{error::Error, fmt};
 
 use crate::{value::Value, vm::InstructionPointer};
 
@@ -86,7 +86,7 @@ impl TryFrom<u8> for OpCode {
 
 pub struct Chunk {
     pub code: Vec<u8>,
-    pub constants: Vec<Value>,
+    constants: Vec<Value>,
     pub lines: Vec<usize>,
 }
 
@@ -108,9 +108,9 @@ impl Chunk {
         self.write(op_code as u8, line);
     }
 
-    pub fn add_constant(&mut self, value: Value) -> usize {
+    pub fn add_constant(&mut self, value: Value) -> ConstantId {
         self.constants.push(value);
-        self.constants.len() - 1
+        ConstantId(self.constants.len() - 1)
     }
 
     pub fn line(&self, i: InstructionPointer) -> usize {
@@ -119,5 +119,27 @@ impl Chunk {
 
     pub fn byte(&self, i: InstructionPointer) -> u8 {
         self.code[i.0]
+    }
+
+    pub fn constant(&self, i: InstructionPointer) -> ConstantId {
+        ConstantId(self.byte(i) as usize)
+    }
+
+    pub fn constant_value(&self, c: ConstantId) -> Value {
+        self.constants[c.0]
+    }
+}
+
+pub struct ConstantId(pub usize);
+
+impl ConstantId {
+    pub fn over_u8(&self) -> bool {
+        self.0 > u8::MAX as usize
+    }
+}
+
+impl fmt::Debug for ConstantId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:>4}", self.0)
     }
 }

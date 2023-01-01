@@ -1,12 +1,12 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt::{Write, self},
+    fmt::{self, Write},
     rc::Rc,
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use crate::{
-    chunk::{Chunk, OpCode},
+    chunk::{Chunk, ConstantId, OpCode},
     compiler::compile,
     config::Config,
     debug::{disassemble_instruction, print_value},
@@ -67,8 +67,8 @@ impl VM {
     }
 
     pub fn read_constant(&mut self) -> Value {
-        let byte = self.read_byte();
-        self.chunk().constants[byte as usize].clone()
+        let constant = ConstantId(self.read_byte() as usize);
+        self.chunk().constant_value(constant)
     }
 
     fn binary_op<F: Fn(f64, f64) -> Value>(&mut self, f: F) -> bool {
@@ -396,7 +396,8 @@ impl VM {
             writeln!(
                 self.config.vm_error,
                 "[line {} in {}]",
-                function.chunk.line(frame.instruction_pointer), name
+                function.chunk.line(frame.instruction_pointer),
+                name
             )
             .unwrap();
         }
@@ -437,7 +438,6 @@ impl fmt::Display for InstructionPointer {
         write!(f, "{:0>4}", self.0)
     }
 }
-
 
 pub enum InterpretResult {
     OK,
