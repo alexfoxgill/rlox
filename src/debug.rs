@@ -17,7 +17,7 @@ pub fn disassemble_chunk(chunk: &Chunk, name: &str, memory: &Memory, output: &mu
 
 pub fn disassemble_instruction(
     chunk: &Chunk,
-    offset: usize,
+    mut offset: usize,
     memory: &Memory,
     output: &mut impl Write,
 ) -> usize {
@@ -67,6 +67,17 @@ pub fn disassemble_instruction(
         | OpCode::Return
         | OpCode::Print
         | OpCode::Pop => simple_instruction(op_code, offset, output),
+
+        OpCode::Closure => {
+            offset += 1;
+            let constant = chunk.code[offset];
+            offset += 1;
+            let s = format!("{op_code:?}");
+            write!(output, "{s:<16} {:>4} ", constant).unwrap();
+            print_value(&chunk.constants[constant as usize], memory, output);
+            write!(output, "\n").unwrap();
+            offset
+        }
     }
 }
 
@@ -147,6 +158,12 @@ pub fn print_value(value: &Value, memory: &Memory, output: &mut impl Write) {
                 let f = &memory.natives[*id];
                 let s = memory.strings.lookup(f.name);
                 write!(output, "<native fn {s}>").unwrap();
+            }
+            Object::Closure(id) => {
+                let c = &memory.closures[*id];
+                let f = &memory.functions[c.function];
+                let s = memory.strings.lookup(f.name);
+                write!(output, "<closure {s}>").unwrap();
             }
         },
     }

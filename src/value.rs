@@ -53,6 +53,15 @@ impl Value {
         }
         None
     }
+
+    pub fn as_closure(&self) -> Option<usize> {
+        if let Value::Object(o) = self {
+            if let Object::Closure(id) = o.as_ref() {
+                return Some(*id);
+            }
+        }
+        None
+    }
 }
 
 #[derive(PartialEq)]
@@ -60,6 +69,7 @@ pub enum Object {
     String(&'static str),
     StringId(StrId),
     Function(usize),
+    Closure(usize),
     NativeFunction(usize),
 }
 
@@ -73,6 +83,10 @@ pub struct Function {
 pub enum FunctionType {
     Script,
     Function,
+}
+
+pub struct Closure {
+    pub function: usize
 }
 
 pub struct NativeFunction {

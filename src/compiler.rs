@@ -88,8 +88,9 @@ impl Parser {
             None
         } else {
             let mut vm = VM::new(self.memory, self.config);
-            vm.push(Value::Object(Rc::new(Object::Function(0))));
-            vm.call(0, 0);
+            let closure = vm.new_closure(0);
+            vm.push(Value::Object(Rc::new(Object::Closure(closure))));
+            vm.call(closure, 0);
             Some(vm)
         }
     }
@@ -243,7 +244,7 @@ impl Parser {
         let f = self.end_compiler();
 
         let constant = self.make_constant(Value::Object(Rc::new(Object::Function(f))));
-        self.emit_bytes(OpCode::Constant as u8, constant)
+        self.emit_bytes(OpCode::Closure as u8, constant)
     }
 
     fn call(&mut self) {

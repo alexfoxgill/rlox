@@ -81,6 +81,22 @@ mod tests {
     }
 
     #[test]
+    fn recursion() {
+        let res = interpret_str(
+            r#"
+            fun fib(n) {
+                if (n < 2) return n;
+                return fib(n - 2) + fib(n - 1);
+            }
+            
+            print fib(10);
+        "#,
+        );
+
+        assert_eq!(res, "55");
+    }
+
+    #[test]
     fn natives() {
         interpret(
             r#"

@@ -12,7 +12,7 @@ use crate::{
     debug::{disassemble_instruction, print_value},
     memory::Memory,
     string_intern::StrId,
-    value::{NativeFunction, Object, Value},
+    value::{NativeFunction, Object, Value, Closure},
 };
 
 pub fn interpret(source: &str, config: Config) -> InterpretResult {
@@ -90,7 +90,8 @@ impl VM {
     pub fn run(&mut self) -> InterpretResult {
         loop {
             {
-                let f = self.frame().function;
+                let c = self.frame().closure;
+                let f = self.memory.closures[c].function;
                 let ip = self.frame().instruction_pointer;
                 let chunk = &self.memory.functions[f].chunk;
 
@@ -294,13 +295,31 @@ impl VM {
                         return InterpretResult::RuntimeError;
                     }
                 }
+
+                OpCode::Closure => {
+                    if let Some(function) = self.read_constant().as_function() {
+                        let closure = self.new_closure(function);
+                        self.push(Value::Object(Rc::new(Object::Closure(closure))));
+                    } else {
+                        self.runtime_error("Expected closure");
+                        return InterpretResult::RuntimeError;
+                    }
+                }
             }
         }
     }
 
+    pub fn new_closure(&mut self, function_id: usize) -> usize {
+        let closure = self.memory.closures.len();
+        self.memory.closures.push(Closure {
+            function: function_id,
+        });
+        closure
+    }
+
     fn call_value(&mut self, value: Value, arg_count: u8) -> bool {
-        if let Some(f_id) = value.as_function() {
-            self.call(f_id, arg_count as usize)
+        if let Some(c_id) = value.as_closure() {
+            self.call(c_id, arg_count as usize)
         } else if let Some(f_id) = value.as_native_function() {
             let native = &self.memory.natives[f_id];
             let init_stack = self.stack.len() - arg_count as usize;
@@ -315,7 +334,9 @@ impl VM {
         }
     }
 
-    pub fn call(&mut self, f_id: usize, arg_count: usize) -> bool {
+    pub fn call(&mut self, c_id: usize, arg_count: usize) -> bool {
+        let closure = &self.memory.closures[c_id];
+        let f_id = closure.function;
         let arity = self.memory.functions[f_id].arity;
         if arg_count != arity {
             self.runtime_error(&format!("Expected {arity} arguments but got {arg_count}"));
@@ -328,7 +349,7 @@ impl VM {
         }
 
         self.frames.push(CallFrame {
-            function: f_id,
+            closure: c_id,
             instruction_pointer: 0,
             slot_start: self.stack.len() - arg_count - 1,
         });
@@ -344,7 +365,8 @@ impl VM {
     }
 
     fn chunk(&self) -> &Chunk {
-        let f = self.frame().function;
+        let c_id = self.frame().closure;
+        let f = self.memory.closures[c_id].function;
         &self.memory.functions[f].chunk
     }
 
@@ -372,7 +394,8 @@ impl VM {
         write!(self.config.vm_error, "[line {line}] in script").unwrap();
 
         for frame in self.frames.iter().rev() {
-            let function = &self.memory.functions[frame.function];
+            let f_id = self.memory.closures[frame.closure].function;
+            let function = &self.memory.functions[f_id];
             let name = self.memory.strings.lookup(function.name);
             writeln!(
                 self.config.vm_error,
@@ -412,7 +435,7 @@ fn is_falsey(value: Value) -> bool {
 }
 
 pub struct CallFrame {
-    pub function: usize,
+    pub closure: usize,
     pub instruction_pointer: usize,
     pub slot_start: usize,
 }
